@@ -24,8 +24,9 @@ export default function Home() {
         </Link>
       </nav>
 
-      <footer className="mt-24 text-xs text-gray-400">
-        diwakarwrites.com
+      <footer className="mt-24 text-xs text-gray-400 flex justify-between">
+        <span>diwakarwrites.com</span>
+        <Link href="/write" className="hover:text-gray-600">write →</Link>
       </footer>
     </main>
   );

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\\\\src\\\\app\\\\write\\\\[id]\")",
+      "Bash(mkdir \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\\\\src\\\\app\\\\writings\\\\[id]\")",
+      "Bash(Copy-Item \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\\\\src\\\\middleware.ts\" \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\\\\src\\\\proxy.ts\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\\\\src\\\\middleware.ts\")"
+    ]
+  }
+}
