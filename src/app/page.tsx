@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import ChatPanel from '@/components/ChatPanel'
 
 export const revalidate = 60
 
@@ -327,6 +328,8 @@ export default async function Home() {
           )}
         </div>
       </div>
+
+      <ChatPanel agent="coach" label="Daily Coach" placeholder="How's my day looking?" />
     </div>
   )
 }

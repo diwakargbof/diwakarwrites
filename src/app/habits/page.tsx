@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import ChatPanel from '@/components/ChatPanel'
 
 const TODAY = new Date().toISOString().split('T')[0]
 const TARGETS = { sleep: 7, steps: 13000, water: 3700, protein: 140, calories: 1900, fiber: 25 }
@@ -514,6 +515,12 @@ export default function HabitsPage() {
           </div>
         </div>
       )}
+
+      <ChatPanel
+        agent="fitness"
+        label="Fitness Coach"
+        placeholder="How's my protein this week? What should I train today?"
+      />
     </div>
   )
 }
