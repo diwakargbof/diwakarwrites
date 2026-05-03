@@ -29,40 +29,8 @@ async function yahooQuote(symbol: string): Promise<Quote | null> {
   }
 }
 
-interface NewsItem {
-  title: string
-  url: string
-}
-
-async function getNews(): Promise<NewsItem[]> {
-  try {
-    const res = await fetch('https://feeds.bbci.co.uk/news/world/rss.xml', {
-      next: { revalidate: 900 },
-    })
-    if (!res.ok) return []
-    const xml = await res.text()
-    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 5)
-    return items
-      .map(([, body]) => {
-        const cdataMatch = body.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/)
-        const title =
-          cdataMatch?.[1] ??
-          body.match(/<title>([^<]+)<\/title>/)?.[1] ??
-          ''
-        const link =
-          body.match(/<link>([^<]+)<\/link>/)?.[1] ??
-          body.match(/<guid[^>]*>([^<]+)<\/guid>/)?.[1] ??
-          ''
-        return { title: title.trim(), url: link.trim() }
-      })
-      .filter(n => n.title)
-  } catch {
-    return []
-  }
-}
-
 export async function GET() {
-  const [msftRes, btcRes, niftyRes, goldRes, fxRes, newsRes] = await Promise.allSettled([
+  const [msftRes, btcRes, niftyRes, goldRes, fxRes] = await Promise.allSettled([
     yahooQuote('MSFT'),
     yahooQuote('BTC-USD'),
     yahooQuote('^NSEI'),
@@ -70,7 +38,6 @@ export async function GET() {
     fetch('https://api.frankfurter.app/latest?from=USD&to=INR', {
       next: { revalidate: 300 },
     }).then(r => r.json()),
-    getNews(),
   ])
 
   const fxRate: number | null =
@@ -90,7 +57,6 @@ export async function GET() {
     nifty:     niftyRes.status === 'fulfilled' ? niftyRes.value : null,
     goldInr10g,
     usdInr: fxRate,
-    news:      newsRes.status  === 'fulfilled' ? newsRes.value  : [],
     updatedAt: new Date().toISOString(),
   })
 }
