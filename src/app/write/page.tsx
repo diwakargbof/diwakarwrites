@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { supabase, Writing } from '@/lib/supabase'
 import { createWriting } from './actions'
 
+export const dynamic = 'force-dynamic'
+
 export default async function WritePage() {
   const { data: writings } = await supabase
     .from('writings')
