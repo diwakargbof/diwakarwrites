@@ -383,6 +383,53 @@ hr.rule { border: none; border-top: 1px solid var(--rule); }
 .room-card-title { font-family: var(--serif); font-size: 20px; font-weight: 500; margin-bottom: 5px; }
 .room-card-desc { font-size: 13px; color: var(--ink-3); }
 
+/* ── Home portal rooms grid ── */
+.home-room {
+  background: var(--paper);
+  padding: 28px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: background 0.18s;
+  text-decoration: none;
+  color: var(--ink);
+}
+.home-room:hover { background: var(--paper-2); }
+.home-room:hover .room-arr { transform: translateX(4px); }
+.room-arr { font-family: var(--serif); font-size: 20px; color: var(--accent); transition: transform 0.18s ease; display: inline-block; }
+
+/* ── Home kicker ── */
+.kicker {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kicker-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* ── Home entry row (hover indent) ── */
+.home-entry {
+  display: grid;
+  grid-template-columns: 76px 1fr 52px;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+  text-decoration: none;
+  color: var(--ink);
+  transition: padding-left 0.14s;
+}
+.home-entry:hover { padding-left: 8px; }
+
+/* ── Selection ── */
+::selection { background: var(--accent); color: var(--paper); }
+
 /* ── TipTap editor ── */
 .ProseMirror { outline: none; }
 .ProseMirror p.is-editor-empty:first-child::before {
