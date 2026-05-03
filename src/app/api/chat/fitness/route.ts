@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
   const [{ data: logs }, { data: food }, { data: workouts }] = await Promise.all([
     supabase.from('habit_logs')
-      .select('date,sleep_hours,steps,water_ml,weight_kg,chess_games,chess_wins,mood')
+      .select('date,sleep_hours,steps,water_ml,weight_kg,chess_games,chess_wins,mood,meditation_min,pages_read,pages_written,face_care,oral_care,content_created')
       .gte('date', from30str).order('date', { ascending: false }),
     supabase.from('food_entries')
       .select('date,description,calories,protein_g,fiber_g')
@@ -35,9 +35,15 @@ export async function POST(req: Request) {
     if (d.steps)       parts.push(`${d.steps.toLocaleString()} steps`)
     if (d.water_ml)    parts.push(`${(d.water_ml / 1000).toFixed(1)}L water`)
     if (d.weight_kg)   parts.push(`${d.weight_kg}kg`)
-    if (d.chess_games) parts.push(`chess ${d.chess_wins}W/${d.chess_games - d.chess_wins}L`)
+    if (d.chess_games)     parts.push(`chess ${d.chess_wins}W/${d.chess_games - d.chess_wins}L`)
+    if (d.meditation_min)  parts.push(`meditation ${d.meditation_min}min`)
+    if (d.pages_read)      parts.push(`read ${d.pages_read}pp`)
+    if (d.pages_written)   parts.push(`wrote ${d.pages_written}pp`)
+    if (d.face_care)       parts.push('face ✓')
+    if (d.oral_care)       parts.push('oral ✓')
+    if (d.content_created) parts.push('content ✓')
     const moods = ['', 'rough', 'meh', 'okay', 'good', 'great']
-    if (d.mood)        parts.push(`mood: ${moods[d.mood]}`)
+    if (d.mood)            parts.push(`mood: ${moods[d.mood]}`)
     return parts.join(' | ')
   }).join('\n')
 
@@ -74,7 +80,7 @@ export async function POST(req: Request) {
 
   const system = `You are Diwakar's personal fitness and health coach. You have access to his last 30 days of real data. Be specific, reference actual numbers, and give actionable advice. Be direct and concise — like a good coach, not a chatbot. Today is ${today}.
 
-TARGETS: sleep 7h | steps 13,000 | water 3.7L | protein 140g | calories 1,900 kcal
+TARGETS: sleep 7h | steps 13,000 | water 3.7L | protein 140g | calories 1,900 kcal | meditation 20min | pages read 30 | pages written 2
 
 30-DAY AVERAGES:
 - Sleep: ${avgSleep}h/night

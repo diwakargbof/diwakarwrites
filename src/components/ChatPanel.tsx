@@ -5,16 +5,18 @@ import { DefaultChatTransport, UIMessage } from 'ai'
 import { useState, useRef, useEffect, useMemo } from 'react'
 
 type Props = {
-  agent: 'fitness' | 'writing' | 'coach'
+  agent: 'fitness' | 'writing' | 'coach' | 'content'
   label: string
   placeholder?: string
   extraBody?: Record<string, string>
+  rightOffset?: number  // px from right edge, default 28 — use to stack multiple panels
 }
 
 const AGENT_META = {
   fitness: { color: '#c4502e', icon: '◎', greeting: 'I have your last 30 days of food, workouts, sleep, steps, and weight. What do you want to know?' },
   writing: { color: '#7a6fc0', icon: '✦', greeting: 'I know your manuscripts, chapters, and writing voice. Ask me anything — story feedback, what to write next, help drafting a scene.' },
   coach:   { color: '#2a7a4a', icon: '◈', greeting: "I'm looking at your whole day — habits, food, writing, reading. What's on your mind?" },
+  content: { color: '#b07a2a', icon: '▶', greeting: "Let's make something. Tell me what's on your mind — a rough idea, a theme, a platform — and I'll help you shape it into content." },
 }
 
 function getTextFromMessage(msg: UIMessage): string {
@@ -24,7 +26,7 @@ function getTextFromMessage(msg: UIMessage): string {
     .join('')
 }
 
-export default function ChatPanel({ agent, label, placeholder, extraBody }: Props) {
+export default function ChatPanel({ agent, label, placeholder, extraBody, rightOffset = 28 }: Props) {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -68,7 +70,7 @@ export default function ChatPanel({ agent, label, placeholder, extraBody }: Prop
         <button
           onClick={() => setOpen(true)}
           style={{
-            position: 'fixed', bottom: 28, right: 28, zIndex: 200,
+            position: 'fixed', bottom: 28, right: rightOffset, zIndex: 200,
             width: 48, height: 48, borderRadius: '50%',
             background: meta.color, color: '#fff',
             border: 'none', cursor: 'pointer',
@@ -88,7 +90,7 @@ export default function ChatPanel({ agent, label, placeholder, extraBody }: Prop
       {/* Panel */}
       {open && (
         <div style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 200,
+          position: 'fixed', bottom: 24, right: rightOffset - 4, zIndex: 200,
           width: 400, maxWidth: 'calc(100vw - 32px)',
           height: 560, maxHeight: 'calc(100vh - 80px)',
           background: 'var(--paper)',
