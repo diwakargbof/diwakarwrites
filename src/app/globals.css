@@ -522,6 +522,17 @@ hr.rule { border: none; border-top: 1px solid var(--rule); }
 .mobile-menu a:hover { background: var(--paper-2); color: var(--ink); }
 .mobile-menu a.active { color: var(--ink); font-weight: 500; }
 
+/* ── Mobile data strip (ticker + tidbit, shown only on < 1200px) ── */
+.mobile-strip {
+  display: none;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 90;
+}
+.mobile-strip *::-webkit-scrollbar { display: none; }
+
 /* ══════════════════════════════════════
    RESPONSIVE BREAKPOINTS
    1200px — hide sidebar
@@ -532,6 +543,7 @@ hr.rule { border: none; border-top: 1px solid var(--rule); }
 @media (max-width: 1200px) {
   .sidebar { display: none; }
   .main-offset { padding-left: 0; }
+  .mobile-strip { display: block; }
 }
 
 @media (max-width: 900px) {

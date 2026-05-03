@@ -3,6 +3,7 @@ import './globals.css'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import Sidebar from '@/components/Sidebar'
+import MobileDataStrip from '@/components/MobileDataStrip'
 
 export const metadata: Metadata = {
   title: 'Diwakar · Notebook, Habits, Library',
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <NavBar />
         <Sidebar />
+        <MobileDataStrip />
         <div className="main-offset">
           <div style={{ minHeight: 'calc(100vh - var(--nav-h) - 61px)' }}>
             {children}
