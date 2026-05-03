@@ -11,43 +11,40 @@ export default async function WritePage() {
     .order('updated_at', { ascending: false })
 
   return (
-    <main className="max-w-2xl mx-auto px-6 py-16">
-      <div className="flex items-center justify-between mb-10">
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '52px 24px 80px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36 }}>
         <div>
-          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 block mb-1">← Home</Link>
-          <h1 className="text-2xl font-bold">My Writings</h1>
+          <Link href="/" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none', display: 'block', marginBottom: 8 }}>← home</Link>
+          <h1 className="page-h">My Writings</h1>
         </div>
         <form action={createWriting}>
-          <button
-            type="submit"
-            className="bg-black text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-800"
-          >
-            + New
-          </button>
+          <button type="submit" className="btn btn-primary">+ New</button>
         </form>
       </div>
 
       {!writings || writings.length === 0 ? (
-        <p className="text-gray-400">No writings yet. Hit + New to start.</p>
+        <p style={{ color: 'var(--ink-4)', fontSize: 14, fontStyle: 'italic' }}>No writings yet. Hit + New to start.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {(writings as Writing[]).map((w) => (
-            <li key={w.id}>
-              <Link href={`/write/${w.id}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                <div>
-                  <p className="font-medium">{w.title || 'Untitled'}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(w.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
+        <div className="row-list">
+          {(writings as (Writing & { section?: string })[]).map(w => (
+            <Link key={w.id} href={`/write/${w.id}`} className="row-item">
+              <div>
+                <div className="row-title">{w.title || 'Untitled'}</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 2 }}>
+                  {w.section || 'piece'} · {new Date(w.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${w.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {w.published ? 'Published' : 'Draft'}
-                </span>
-              </Link>
-            </li>
+              </div>
+              <span style={{
+                fontSize: 11, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 20,
+                background: w.published ? 'rgba(74,180,80,0.1)' : 'var(--paper-2)',
+                color: w.published ? '#3a9a3f' : 'var(--ink-4)',
+              }}>
+                {w.published ? 'published' : 'draft'}
+              </span>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
-    </main>
+    </div>
   )
 }

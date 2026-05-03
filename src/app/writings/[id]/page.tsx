@@ -6,26 +6,32 @@ export const revalidate = 60
 
 export default async function ReadingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { data: writing } = await supabase
-    .from('writings')
-    .select('*')
-    .eq('id', id)
-    .eq('published', true)
-    .single()
+  const { data: w } = await supabase
+    .from('writings').select('*').eq('id', id).eq('published', true).single()
 
-  if (!writing) notFound()
+  if (!w) notFound()
 
   return (
-    <main className="max-w-2xl mx-auto px-6 py-20">
-      <Link href="/writings" className="text-sm text-gray-400 hover:text-gray-600 block mb-10">← All writings</Link>
-      <p className="text-sm text-gray-400 mb-3">
-        {new Date(writing.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-      </p>
-      <h1 className="text-4xl font-bold mb-10">{writing.title}</h1>
-      <article
-        className="prose prose-lg max-w-none"
-        dangerouslySetInnerHTML={{ __html: writing.content }}
-      />
-    </main>
+    <div className="page-wrap" style={{ maxWidth: 680 }}>
+      <Link href="/writings" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none', display: 'block', marginBottom: 40 }}>
+        ← writings
+      </Link>
+
+      <div style={{ marginBottom: 48 }}>
+        {w.section && (
+          <span className="mono-label" style={{ marginBottom: 10 }}>{w.section.toUpperCase()}</span>
+        )}
+        <h1 style={{ fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 600, lineHeight: 1.2, letterSpacing: '-0.025em', marginBottom: 14 }}>
+          {w.title}
+        </h1>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>
+          {new Date(w.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
+      </div>
+
+      <hr className="rule" style={{ marginBottom: 40 }} />
+
+      <div className="prose-serif" dangerouslySetInnerHTML={{ __html: w.content }} />
+    </div>
   )
 }

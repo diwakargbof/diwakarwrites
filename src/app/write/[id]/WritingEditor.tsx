@@ -7,10 +7,17 @@ import Editor from '@/components/Editor'
 import { Writing } from '@/lib/supabase'
 import { saveWriting, deleteWriting } from './actions'
 
+const SECTIONS = [
+  { value: 'pieces', label: 'Piece' },
+  { value: 'diary', label: 'Diary' },
+  { value: 'book', label: 'Book chapter' },
+]
+
 export default function WritingEditor({ writing }: { writing: Writing }) {
   const [title, setTitle] = useState(writing.title)
   const [content, setContent] = useState(writing.content)
   const [published, setPublished] = useState(writing.published)
+  const [section, setSection] = useState((writing as Writing & { section?: string }).section ?? 'pieces')
   const [saved, setSaved] = useState(true)
   const [saving, startSave] = useTransition()
   const router = useRouter()
@@ -19,7 +26,7 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
 
   const handleSave = () => {
     startSave(async () => {
-      await saveWriting({ id: writing.id, title, content, published })
+      await saveWriting({ id: writing.id, title, content, published, section })
       setSaved(true)
     })
   }
@@ -31,47 +38,38 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-10">
-      <div className="flex items-center justify-between mb-8">
-        <Link href="/write" className="text-sm text-gray-400 hover:text-gray-600">← All writings</Link>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={published}
-              onChange={(e) => { setPublished(e.target.checked); markDirty() }}
-              className="accent-black"
-            />
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 80px' }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, gap: 12 }}>
+        <Link href="/write" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none' }}>
+          ← all writings
+        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <select value={section} onChange={e => { setSection(e.target.value); markDirty() }}
+            style={{ fontFamily: 'var(--sans)', fontSize: 12, padding: '5px 10px', border: '1px solid var(--rule)', borderRadius: 'var(--r)', background: 'var(--paper)', color: 'var(--ink-2)', outline: 'none', cursor: 'pointer' }}>
+            {SECTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ink-3)', cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={published} onChange={e => { setPublished(e.target.checked); markDirty() }} style={{ accentColor: 'var(--accent)' }} />
             Publish
           </label>
-          <button
-            onClick={handleSave}
-            disabled={saving || saved}
-            className="bg-black text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-40"
-          >
-            {saving ? 'Saving...' : saved ? 'Saved' : 'Save'}
+          <button onClick={handleSave} disabled={saving || saved} className="btn btn-primary"
+            style={{ opacity: saved && !saving ? 0.5 : 1 }}>
+            {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
           </button>
-          <button
-            onClick={handleDelete}
-            className="text-red-400 hover:text-red-600 text-sm"
-          >
+          <button onClick={handleDelete} style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-4)', background: 'none', border: 'none', cursor: 'pointer' }}>
             Delete
           </button>
         </div>
       </div>
 
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => { setTitle(e.target.value); markDirty() }}
+      {/* Title */}
+      <input type="text" value={title} onChange={e => { setTitle(e.target.value); markDirty() }}
         placeholder="Title"
-        className="w-full text-3xl font-bold placeholder-gray-300 focus:outline-none mb-6"
-      />
+        style={{ width: '100%', fontFamily: 'var(--serif)', fontSize: 34, fontWeight: 600, letterSpacing: '-0.02em', border: 'none', outline: 'none', background: 'transparent', color: 'var(--ink)', marginBottom: 24 }} />
 
-      <Editor
-        content={content}
-        onChange={(html) => { setContent(html); markDirty() }}
-      />
-    </main>
+      {/* Editor */}
+      <Editor content={content} onChange={html => { setContent(html); markDirty() }} />
+    </div>
   )
 }

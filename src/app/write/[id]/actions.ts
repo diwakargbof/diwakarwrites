@@ -4,16 +4,17 @@ import { supabase } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 
 export async function saveWriting({
-  id, title, content, published,
+  id, title, content, published, section,
 }: {
   id: string
   title: string
   content: string
   published: boolean
+  section: string
 }) {
   await supabase
     .from('writings')
-    .update({ title, content, published, updated_at: new Date().toISOString() })
+    .update({ title, content, published, section, updated_at: new Date().toISOString() })
     .eq('id', id)
 }
 
