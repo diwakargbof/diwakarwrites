@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export default async function WritingsPage() {
   const { data: writings } = await supabase
     .from('writings')
-    .select('id, title, content, created_at, section')
+    .select('id, title, content, created_at, section, manuscript_id')
     .eq('published', true)
     .order('created_at', { ascending: false })
 

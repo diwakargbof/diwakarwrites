@@ -12,4 +12,15 @@ export type Writing = {
   created_at: string
   updated_at: string
   published: boolean
+  section?: string
+  manuscript_id?: string | null
+}
+
+export type Manuscript = {
+  id: string
+  title: string
+  description?: string | null
+  genre?: string | null
+  target_words: number
+  created_at: string
 }

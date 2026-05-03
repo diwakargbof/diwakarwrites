@@ -9,7 +9,10 @@
       "Bash(python3 -c ' *)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\\\\src\" -Recurse -File)",
       "Bash(Select-Object FullName)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
