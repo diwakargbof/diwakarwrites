@@ -17,6 +17,7 @@
   --mono: 'JetBrains Mono', 'Courier New', monospace;
   --r: 6px;
   --nav-h: 56px;
+  --sidebar-w: 200px;
 }
 
 [data-theme="dark"] {
@@ -438,4 +439,162 @@ hr.rule { border: none; border-top: 1px solid var(--rule); }
   pointer-events: none;
   float: left;
   height: 0;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: var(--nav-h);
+  width: var(--sidebar-w);
+  height: calc(100vh - var(--nav-h));
+  overflow-y: auto;
+  border-right: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 20px 16px 32px;
+  z-index: 50;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+
+/* ── Main content offset (accounts for fixed sidebar) ── */
+.main-offset {
+  padding-left: var(--sidebar-w);
+}
+
+/* ── Responsive grid helpers ── */
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.col-6 { grid-column: span 6; }
+.col-4 { grid-column: span 4; }
+
+/* ── Two-column layout ── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+}
+
+/* ── Hamburger (mobile only) ── */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-3);
+  font-size: 18px;
+  padding: 4px 6px;
+  line-height: 1;
+  transition: color 0.12s;
+}
+.hamburger:hover { color: var(--ink); }
+
+/* ── Mobile nav menu ── */
+.mobile-menu {
+  position: fixed;
+  top: var(--nav-h);
+  left: 0;
+  right: 0;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  z-index: 98;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+[data-theme="dark"] .mobile-menu { background: var(--paper); box-shadow: 0 8px 24px rgba(0,0,0,0.32); }
+.mobile-menu a {
+  display: block;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-family: var(--sans);
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  transition: background 0.1s, color 0.1s;
+}
+.mobile-menu a:last-child { border-bottom: none; }
+.mobile-menu a:hover { background: var(--paper-2); color: var(--ink); }
+.mobile-menu a.active { color: var(--ink); font-weight: 500; }
+
+/* ══════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+   1200px — hide sidebar
+   900px  — tablet adjustments
+   640px  — mobile
+   ══════════════════════════════════════ */
+
+@media (max-width: 1200px) {
+  .sidebar { display: none; }
+  .main-offset { padding-left: 0; }
+}
+
+@media (max-width: 900px) {
+  .col-4 { grid-column: span 6; }
+
+  .two-col { gap: 48px; }
+
+  .home-entry {
+    grid-template-columns: 60px 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Nav */
+  .nav-links { display: none; }
+  .nav-date { display: none; }
+  .brand-sub { display: none; }
+  .hamburger { display: block; }
+
+  /* Containers */
+  .page-wrap,
+  .page-wrap-wide {
+    padding: 28px 16px 64px;
+  }
+
+  /* Footer */
+  .site-footer {
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  /* Tabs */
+  .tab-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  /* Home rooms grid */
+  .rooms-grid {
+    grid-template-columns: 1fr;
+  }
+  .col-6,
+  .col-4 {
+    grid-column: span 1;
+  }
+
+  /* Two column → single */
+  .two-col {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  /* Home entries: hide word count column */
+  .home-entry {
+    grid-template-columns: 60px 1fr;
+  }
+  .home-entry-wc { display: none; }
+
+  /* Heatmap scrollable */
+  .heatmap { overflow-x: auto; }
+
+  /* Reduce home-room min-height */
+  .home-room { min-height: 160px; padding: 20px; }
 }

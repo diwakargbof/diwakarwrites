@@ -117,17 +117,10 @@ export default async function Home() {
       </div>
 
       {/* ── Rooms grid ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(12, 1fr)',
-        gap: 1,
-        background: 'var(--rule)',
-        border: '1px solid var(--rule)',
-        marginBottom: 80,
-      }}>
+      <div className="rooms-grid" style={{ marginBottom: 80 }}>
 
         {/* 01 — Habits (span 6) */}
-        <Link href="/habits" className="home-room" style={{ gridColumn: 'span 6' }}>
+        <Link href="/habits" className="home-room col-6">
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>01</div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 26, letterSpacing: '-0.01em', marginTop: 10, marginBottom: 6 }}>Habits</div>
           <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
@@ -150,7 +143,7 @@ export default async function Home() {
         </Link>
 
         {/* 02 — Writing (span 6) */}
-        <Link href="/writings" className="home-room" style={{ gridColumn: 'span 6' }}>
+        <Link href="/writings" className="home-room col-6">
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>02</div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 26, letterSpacing: '-0.01em', marginTop: 10, marginBottom: 6 }}>Writing</div>
           <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
@@ -173,7 +166,7 @@ export default async function Home() {
         </Link>
 
         {/* 03 — The Book (span 4) */}
-        <Link href="/writings" className="home-room" style={{ gridColumn: 'span 4' }}>
+        <Link href="/writings" className="home-room col-4">
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>03</div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 26, letterSpacing: '-0.01em', marginTop: 10, marginBottom: 6 }}>The Book</div>
           <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>
@@ -195,7 +188,7 @@ export default async function Home() {
         </Link>
 
         {/* 04 — Books (span 4) */}
-        <Link href="/library" className="home-room" style={{ gridColumn: 'span 4' }}>
+        <Link href="/library" className="home-room col-4">
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>04</div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 26, letterSpacing: '-0.01em', marginTop: 10, marginBottom: 6 }}>Books</div>
           <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>Read, reading, want to read.</div>
@@ -206,7 +199,7 @@ export default async function Home() {
         </Link>
 
         {/* 05 — Films & Shows (span 4) */}
-        <Link href="/library" className="home-room" style={{ gridColumn: 'span 4' }}>
+        <Link href="/library" className="home-room col-4">
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>05</div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 26, letterSpacing: '-0.01em', marginTop: 10, marginBottom: 6 }}>Films &amp; shows</div>
           <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>Watched and what I thought of them.</div>
@@ -218,7 +211,7 @@ export default async function Home() {
       </div>
 
       {/* ── Bottom two-column ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64 }}>
+      <div className="two-col">
 
         {/* Latest from notebook */}
         <div>
@@ -240,7 +233,7 @@ export default async function Home() {
                   <div style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.5 }}>{expt(w.content)}</div>
                 )}
               </div>
-              <div style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+              <div className="home-entry-wc" style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
                 {wc(w.content).toLocaleString()}w
               </div>
             </Link>

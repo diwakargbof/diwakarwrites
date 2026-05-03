@@ -15,6 +15,7 @@ export default function NavBar() {
   const pathname = usePathname()
   const [date, setDate] = useState('')
   const [dark, setDark] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     setDate(new Date().toDateString().toLowerCase())
@@ -24,6 +25,9 @@ export default function NavBar() {
       setDark(true)
     }
   }, [])
+
+  // Close mobile menu on route change
+  useEffect(() => { setMenuOpen(false) }, [pathname])
 
   function toggleDark() {
     const next = !dark
@@ -36,37 +40,61 @@ export default function NavBar() {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <nav className="topnav">
-      <div className="topnav-inner">
-        <Link href="/" className="brand">
-          <div className="brand-glyph" />
-          <span className="brand-name">diwakar</span>
-          <span className="brand-sub">// notebook</span>
-        </Link>
+    <>
+      <nav className="topnav">
+        <div className="topnav-inner">
+          <Link href="/" className="brand">
+            <div className="brand-glyph" />
+            <span className="brand-name">diwakar</span>
+            <span className="brand-sub">// notebook</span>
+          </Link>
 
-        <div className="nav-links">
+          <div className="nav-links">
+            {navItems.map(item => (
+              <Link key={item.href} href={item.href} className={isActive(item.href) ? 'active' : ''}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="nav-meta">
+            {date && <span className="nav-date" suppressHydrationWarning>{date}</span>}
+            <button
+              onClick={toggleDark}
+              title="Toggle dark mode"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--ink-3)', fontSize: 14, padding: '2px 4px',
+                lineHeight: 1, transition: 'color 0.12s',
+              }}
+            >
+              {dark ? '☀' : '☾'}
+            </button>
+            <button
+              className="hamburger"
+              onClick={() => setMenuOpen(v => !v)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            >
+              {menuOpen ? '✕' : '☰'}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile dropdown menu */}
+      {menuOpen && (
+        <div className="mobile-menu">
           {navItems.map(item => (
-            <Link key={item.href} href={item.href} className={isActive(item.href) ? 'active' : ''}>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={isActive(item.href) ? 'active' : ''}
+            >
               {item.label}
             </Link>
           ))}
         </div>
-
-        <div className="nav-meta">
-          {date && <span suppressHydrationWarning>{date}</span>}
-          <button
-            onClick={toggleDark}
-            title="Toggle dark mode"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--ink-3)', fontSize: 14, padding: '2px 4px',
-              lineHeight: 1, transition: 'color 0.12s',
-            }}
-          >
-            {dark ? '☀' : '☾'}
-          </button>
-        </div>
-      </div>
-    </nav>
+      )}
+    </>
   )
 }
