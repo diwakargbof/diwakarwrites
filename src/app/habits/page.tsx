@@ -18,6 +18,8 @@ const MOOD_LABELS = ['', 'rough', 'meh', 'okay', 'good', 'great']
 type Log = {
   date: string
   sleep_hours: number
+  sleep_time: string | null
+  wake_time: string | null
   steps: number
   water_ml: number
   weight_kg: number | null
@@ -50,10 +52,20 @@ type HeatData = {
 }
 
 const EMPTY_LOG: Log = {
-  date: TODAY, sleep_hours: 0, steps: 0, water_ml: 0,
-  weight_kg: null, chess_games: 0, chess_wins: 0, mood: null,
+  date: TODAY, sleep_hours: 0, sleep_time: null, wake_time: null,
+  steps: 0, water_ml: 0, weight_kg: null,
+  chess_games: 0, chess_wins: 0, mood: null,
   meditation_min: 0, pages_read: 0, pages_written: 0,
   face_care: false, oral_care: false, content_created: false,
+}
+
+function computeSleepHours(sleepTime: string, wakeTime: string): number {
+  const [sh, sm] = sleepTime.split(':').map(Number)
+  const [wh, wm] = wakeTime.split(':').map(Number)
+  let sleepMins = sh * 60 + sm
+  let wakeMins  = wh * 60 + wm
+  if (wakeMins <= sleepMins) wakeMins += 24 * 60 // crossed midnight
+  return Math.round((wakeMins - sleepMins) / 6) / 10 // one decimal
 }
 
 // ── Shared sub-components ─────────────────────────────────────────────────
@@ -328,7 +340,7 @@ export default function HabitsPage() {
     })))
   }
 
-  function update(field: keyof Log, value: number | boolean | null) {
+  function update(field: keyof Log, value: number | boolean | string | null) {
     setLog(prev => {
       const next = { ...prev, [field]: value }
       supabase.from('habit_logs').upsert(next, { onConflict: 'date' })
@@ -442,19 +454,42 @@ export default function HabitsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
             <div className="card">
               <span className="mono-label">SLEEP</span>
-              <div className="num">{log.sleep_hours || 0}<span style={{ fontSize: 14, color: 'var(--ink-3)' }}>h</span></div>
+              <div className="num">
+                {log.sleep_hours || 0}
+                <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>h</span>
+              </div>
               <div className="num-target">/ {TARGETS.sleep}h target</div>
               <div className="prog" style={{ margin: '10px 0' }}>
                 <div className="prog-fill" style={{ width: `${Math.min((log.sleep_hours || 0) / TARGETS.sleep * 100, 100)}%` }} />
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {[5, 6, 6.5, 7, 7.5, 8, 8.5, 9].map(h => (
-                  <button key={h} onClick={() => update('sleep_hours', h)} style={{
-                    fontFamily: 'var(--mono)', fontSize: 10, padding: '3px 6px',
-                    border: '1px solid var(--rule)', borderRadius: 3, cursor: 'pointer',
-                    background: log.sleep_hours === h ? 'var(--accent)' : 'var(--paper)',
-                    color: log.sleep_hours === h ? '#fff' : 'var(--ink-3)',
-                  }}>{h}</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                {([
+                  { label: 'Bedtime', field: 'sleep_time' as const },
+                  { label: 'Wake up', field: 'wake_time'  as const },
+                ]).map(({ label, field }) => (
+                  <label key={field} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
+                    <input
+                      type="time"
+                      value={log[field] ?? ''}
+                      onChange={e => {
+                        const val = e.target.value || null
+                        const next = { ...log, [field]: val }
+                        if (next.sleep_time && next.wake_time) {
+                          next.sleep_hours = computeSleepHours(next.sleep_time, next.wake_time)
+                        }
+                        setLog(next)
+                        supabase.from('habit_logs').upsert(next, { onConflict: 'date' })
+                      }}
+                      style={{
+                        fontFamily: 'var(--mono)', fontSize: 12,
+                        padding: '4px 8px', border: '1px solid var(--rule)',
+                        borderRadius: 4, background: 'var(--paper-2)',
+                        color: 'var(--ink)', outline: 'none', cursor: 'pointer',
+                        colorScheme: 'light dark',
+                      }}
+                    />
+                  </label>
                 ))}
               </div>
             </div>
