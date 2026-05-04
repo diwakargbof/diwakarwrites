@@ -343,7 +343,9 @@ export default function HabitsPage() {
   function update(field: keyof Log, value: number | boolean | string | null) {
     setLog(prev => {
       const next = { ...prev, [field]: value }
-      supabase.from('habit_logs').upsert(next, { onConflict: 'date' })
+      supabase.from('habit_logs').upsert(next, { onConflict: 'date' }).then(({ error }) => {
+        if (error) console.error('habit_logs upsert failed:', error)
+      })
       return next
     })
   }
@@ -351,7 +353,9 @@ export default function HabitsPage() {
   function logChess(win: boolean) {
     setLog(prev => {
       const next = { ...prev, chess_games: prev.chess_games + 1, chess_wins: prev.chess_wins + (win ? 1 : 0) }
-      supabase.from('habit_logs').upsert(next, { onConflict: 'date' })
+      supabase.from('habit_logs').upsert(next, { onConflict: 'date' }).then(({ error }) => {
+        if (error) console.error('habit_logs upsert failed:', error)
+      })
       return next
     })
   }
@@ -360,7 +364,9 @@ export default function HabitsPage() {
     setLog(prev => {
       if (prev.chess_games === 0) return prev
       const next = { ...prev, chess_games: prev.chess_games - 1, chess_wins: Math.min(prev.chess_wins, prev.chess_games - 1) }
-      supabase.from('habit_logs').upsert(next, { onConflict: 'date' })
+      supabase.from('habit_logs').upsert(next, { onConflict: 'date' }).then(({ error }) => {
+        if (error) console.error('habit_logs upsert failed:', error)
+      })
       return next
     })
   }
