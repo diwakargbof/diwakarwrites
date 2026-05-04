@@ -480,12 +480,16 @@ export default function HabitsPage() {
                       value={log[field] ?? ''}
                       onChange={e => {
                         const val = e.target.value || null
-                        const next = { ...log, [field]: val }
-                        if (next.sleep_time && next.wake_time) {
-                          next.sleep_hours = computeSleepHours(next.sleep_time, next.wake_time)
-                        }
-                        setLog(next)
-                        supabase.from('habit_logs').upsert(next, { onConflict: 'date' })
+                        setLog(prev => {
+                          const next = { ...prev, [field]: val }
+                          if (next.sleep_time && next.wake_time) {
+                            next.sleep_hours = computeSleepHours(next.sleep_time, next.wake_time)
+                          }
+                          supabase.from('habit_logs').upsert(next, { onConflict: 'date' }).then(({ error }) => {
+                            if (error) console.error('habit_logs upsert failed:', error)
+                          })
+                          return next
+                        })
                       }}
                       style={{
                         fontFamily: 'var(--mono)', fontSize: 12,
