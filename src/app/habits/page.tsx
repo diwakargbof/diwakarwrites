@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ChatPanel from '@/components/ChatPanel'
+import PasswordGate from '@/components/PasswordGate'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, UIMessage } from 'ai'
 
@@ -400,6 +401,7 @@ export default function HabitsPage() {
   const selectedDay = selectedDate ? heatmap.find(d => d.date === selectedDate) : null
 
   return (
+    <PasswordGate>
     <div className="page-wrap">
       <div style={{ marginBottom: 32 }}>
         <h1 className="page-h" style={{ marginBottom: 6 }}>Habits</h1>
@@ -803,6 +805,7 @@ export default function HabitsPage() {
 
       <ChatPanel agent="fitness" label="Fitness Coach" placeholder="How's my protein this week? What should I train today?" />
     </div>
+    </PasswordGate>
   )
 }
 

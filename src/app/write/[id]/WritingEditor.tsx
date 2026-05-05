@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Editor from '@/components/Editor'
 import { Writing } from '@/lib/supabase'
 import { saveWriting, deleteWriting } from './actions'
+import PasswordGate from '@/components/PasswordGate'
 
 const SECTIONS = [
   { value: 'pieces', label: 'Piece' },
@@ -38,7 +39,8 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px 80px' }}>
+    <PasswordGate>
+    <div style={{ maxWidth: 920, margin: '0 auto', padding: '40px 24px 80px' }}>
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, gap: 12 }}>
         <Link href="/write" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none' }}>
@@ -71,5 +73,6 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
       {/* Editor */}
       <Editor content={content} onChange={html => { setContent(html); markDirty() }} />
     </div>
+    </PasswordGate>
   )
 }

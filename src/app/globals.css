@@ -227,6 +227,15 @@ body {
 .btn-ghost { border-color: transparent; background: transparent; }
 .btn-ghost:hover { background: var(--paper-2); border-color: transparent; }
 
+/* ── Password gate ── */
+@keyframes gate-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px); }
+  40%       { transform: translateX(8px); }
+  60%       { transform: translateX(-6px); }
+  80%       { transform: translateX(4px); }
+}
+
 /* ── Mono label ── */
 .mono-label {
   font-family: var(--mono);

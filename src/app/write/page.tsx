@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabase, Writing } from '@/lib/supabase'
 import { createWriting, createWritingForm } from './actions'
+import PasswordGate from '@/components/PasswordGate'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +34,7 @@ export default async function WritePage({
   const totalWords = all.reduce((s, w) => s + wc(w.content), 0)
 
   return (
+    <PasswordGate>
     <div style={{ maxWidth: 820, margin: '0 auto', padding: '52px 24px 80px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 44 }}>
@@ -96,5 +98,6 @@ export default async function WritePage({
         </div>
       ))}
     </div>
+    </PasswordGate>
   )
 }

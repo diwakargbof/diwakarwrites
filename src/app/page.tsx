@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ChatPanel from '@/components/ChatPanel'
+import PasswordGate from '@/components/PasswordGate'
 
 export const revalidate = 60
 
@@ -322,7 +323,9 @@ export default async function Home() {
         </div>
       </div>
 
-      <ChatPanel agent="coach" label="Daily Coach" placeholder="How's my day looking?" />
+      <PasswordGate>
+        <ChatPanel agent="coach" label="Daily Coach" placeholder="How's my day looking?" />
+      </PasswordGate>
     </div>
   )
 }
