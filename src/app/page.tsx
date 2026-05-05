@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ChatPanel from '@/components/ChatPanel'
-import StickyTodo from '@/components/StickyTodo'
 
 export const revalidate = 60
 
@@ -255,8 +254,6 @@ export default async function Home() {
           <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 400, letterSpacing: '-0.015em', marginBottom: 28, marginTop: 12 }}>
             What I&apos;m into
           </h2>
-
-          <StickyTodo />
 
           {/* Currently reading */}
           {reading ? (
