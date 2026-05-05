@@ -4,25 +4,24 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const TODAY = new Date().toISOString().split('T')[0]
-
-type Todo = { id: string; date: string; text: string; done: boolean }
+const CATEGORIES = ['kotak', 'bazaar', 'personal'] as const
+type Category = typeof CATEGORIES[number]
+type Todo = { id: string; date: string; text: string; done: boolean; category: Category }
 
 export default function StickyTodo() {
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<Category>('personal')
   const [todos, setTodos] = useState<Todo[]>([])
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Load today's todos + all undone todos from past days
     Promise.all([
-      supabase.from('todos').select('id,date,text,done').eq('date', TODAY).order('created_at'),
-      supabase.from('todos').select('id,date,text,done').lt('date', TODAY).eq('done', false).order('date').order('created_at'),
+      supabase.from('todos').select('id,date,text,done,category').eq('date', TODAY).order('created_at'),
+      supabase.from('todos').select('id,date,text,done,category').lt('date', TODAY).eq('done', false).order('date').order('created_at'),
     ]).then(([{ data: todayData }, { data: pastData }]) => {
-      const past = (pastData ?? []) as Todo[]
-      const today = (todayData ?? []) as Todo[]
-      setTodos([...past, ...today])
+      setTodos([...(pastData ?? []), ...(todayData ?? [])] as Todo[])
     })
   }, [])
 
@@ -41,7 +40,7 @@ export default function StickyTodo() {
   async function add() {
     const text = input.trim()
     if (!text) return
-    const { data } = await supabase.from('todos').insert({ date: TODAY, text }).select('id,date,text,done').single()
+    const { data } = await supabase.from('todos').insert({ date: TODAY, text, category: tab }).select('id,date,text,done,category').single()
     if (data) { setTodos(p => [...p, data as Todo]); setInput('') }
   }
 
@@ -55,22 +54,10 @@ export default function StickyTodo() {
     setTodos(p => p.filter(t => t.id !== id))
   }
 
-  const past    = todos.filter(t => t.date < TODAY)
-  const todayTs = todos.filter(t => t.date === TODAY)
-  const pending = todos.filter(t => !t.done).length
-
-  function DayLabel({ label }: { label: string }) {
-    return (
-      <div style={{
-        padding: '5px 14px 3px',
-        fontFamily: 'var(--mono)', fontSize: 9,
-        color: 'var(--ink-4)', letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-      }}>
-        {label}
-      </div>
-    )
-  }
+  const visible  = todos.filter(t => t.category === tab)
+  const past     = visible.filter(t => t.date < TODAY)
+  const todayTs  = visible.filter(t => t.date === TODAY)
+  const pending  = todos.filter(t => !t.done).length
 
   function TodoRow({ t }: { t: Todo }) {
     return (
@@ -95,7 +82,6 @@ export default function StickyTodo() {
   return (
     <div ref={panelRef} style={{ position: 'fixed', bottom: 28, left: 28, zIndex: 50 }}>
 
-      {/* Panel */}
       {open && (
         <div style={{
           position: 'absolute', bottom: 'calc(100% + 10px)', left: 0,
@@ -106,60 +92,81 @@ export default function StickyTodo() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
           overflow: 'hidden',
         }}>
-          {/* Header */}
+          {/* Category tabs */}
           <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '10px 14px',
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
             borderBottom: '1px solid var(--rule)',
-            background: 'var(--paper-2)',
           }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
-              TASKS {pending > 0 && <span style={{ color: 'var(--accent)' }}>· {pending} left</span>}
-            </span>
-            <button onClick={() => setOpen(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>
-              ×
-            </button>
+            {CATEGORIES.map(c => {
+              const count = todos.filter(t => t.category === c && !t.done).length
+              return (
+                <button key={c} onClick={() => { setTab(c); setTimeout(() => inputRef.current?.focus(), 40) }}
+                  style={{
+                    background: tab === c ? 'var(--paper)' : 'var(--paper-2)',
+                    border: 'none',
+                    borderRight: c !== 'personal' ? '1px solid var(--rule)' : 'none',
+                    borderBottom: tab === c ? '2px solid var(--accent)' : '2px solid transparent',
+                    padding: '8px 4px',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--mono)', fontSize: 10,
+                    color: tab === c ? 'var(--ink)' : 'var(--ink-4)',
+                    letterSpacing: '0.05em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    transition: 'color 0.1s',
+                  }}>
+                  {c}
+                  {count > 0 && (
+                    <span style={{
+                      background: tab === c ? 'var(--accent)' : 'var(--ink-4)',
+                      color: '#fff', borderRadius: 8,
+                      padding: '0 4px', fontSize: 8, fontWeight: 600, lineHeight: '14px',
+                    }}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
 
           {/* List */}
-          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-            {todos.length === 0 && (
-              <p style={{ padding: '12px 14px', fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic', fontFamily: 'var(--serif)', margin: 0 }}>
-                nothing here yet
+          <div style={{ maxHeight: 260, overflowY: 'auto', paddingTop: 4 }}>
+            {visible.length === 0 && (
+              <p style={{ padding: '10px 14px', fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic', fontFamily: 'var(--serif)', margin: 0 }}>
+                nothing here
               </p>
             )}
 
             {past.length > 0 && (
               <>
-                <DayLabel label="unfinished" />
+                <div style={{ padding: '4px 14px 2px', fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>
+                  UNFINISHED
+                </div>
                 {past.map(t => <TodoRow key={t.id} t={t} />)}
-                {todayTs.length > 0 && (
-                  <div style={{ height: 1, background: 'var(--rule)', margin: '4px 0' }} />
-                )}
+                {todayTs.length > 0 && <div style={{ height: 1, background: 'var(--rule)', margin: '4px 0' }} />}
               </>
             )}
 
             {todayTs.length > 0 && (
               <>
-                {past.length > 0 && <DayLabel label="today" />}
+                {past.length > 0 && (
+                  <div style={{ padding: '4px 14px 2px', fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.1em' }}>
+                    TODAY
+                  </div>
+                )}
                 {todayTs.map(t => <TodoRow key={t.id} t={t} />)}
               </>
             )}
           </div>
 
           {/* Input */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 0,
-            borderTop: '1px solid var(--rule)',
-            padding: '8px 14px',
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid var(--rule)', padding: '8px 14px' }}>
             <input
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
-              placeholder="add a task…"
+              placeholder={`add to ${tab}…`}
               style={{
                 flex: 1, fontSize: 13, fontFamily: 'var(--sans)',
                 background: 'none', border: 'none', outline: 'none',
@@ -174,10 +181,8 @@ export default function StickyTodo() {
         </div>
       )}
 
-      {/* Trigger button */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        title="Tasks"
+      {/* Trigger */}
+      <button onClick={() => setOpen(v => !v)} title="Tasks"
         style={{
           width: 42, height: 42, borderRadius: '50%',
           background: open ? '#b04030' : '#c4502e',
@@ -185,12 +190,10 @@ export default function StickyTodo() {
           boxShadow: '0 2px 12px rgba(196,80,46,0.45)',
           cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff',
-          fontSize: 18,
+          color: '#fff', fontSize: 18,
           transition: 'background 0.15s',
           position: 'relative',
-        }}
-      >
+        }}>
         ☑
         {pending > 0 && !open && (
           <span style={{
