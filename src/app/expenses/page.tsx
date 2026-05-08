@@ -5,18 +5,37 @@ import PasswordGate from '@/components/PasswordGate'
 import { supabase } from '@/lib/supabase'
 
 const TODAY = new Date().toISOString().split('T')[0]
-const DAILY_BUDGET = 1500
 
 const CATEGORIES = [
-  { key: 'food',          label: 'food',          color: '#C4502E' },
-  { key: 'transport',     label: 'transport',     color: '#2E7BC4' },
-  { key: 'health',        label: 'health',        color: '#22a06b' },
-  { key: 'shopping',      label: 'shopping',      color: '#8B5CF6' },
-  { key: 'entertainment', label: 'entertain',     color: '#D06B9A' },
-  { key: 'other',         label: 'other',         color: '#8A7F7C' },
+  // groceries
+  { key: 'eggs',         label: 'eggs',          color: '#D4A020', note: '' },
+  { key: 'chicken',      label: 'chicken',        color: '#A0522D', note: '' },
+  { key: 'vegetables',   label: 'vegetables',     color: '#3D8B4E', note: '' },
+  { key: 'milk',         label: 'milk',           color: '#4A9BC4', note: '' },
+  { key: 'curd',         label: 'curd',           color: '#B8945A', note: '' },
+  { key: 'snacks',       label: 'snacks',         color: '#E07820', note: 'what snacks?' },
+  // household
+  { key: 'rent',         label: 'rent',           color: '#5C4BC4', note: '' },
+  { key: 'maid',         label: 'maid',           color: '#3D8B8B', note: '' },
+  { key: 'cook',         label: 'cook',           color: '#8B5C3D', note: '' },
+  // spending
+  { key: 'transport',    label: 'transport',      color: '#2E7BC4', note: 'auto, uber, bus…' },
+  { key: 'food_order',   label: 'food order',     color: '#C44A2A', note: 'swiggy, zomato…' },
+  { key: 'money_home',   label: 'money to home',  color: '#C44A8B', note: '' },
+  // misc
+  { key: 'health',       label: 'health',         color: '#22a06b', note: '' },
+  { key: 'shopping',     label: 'shopping',       color: '#8B5CF6', note: 'what?' },
+  { key: 'other',        label: 'other',          color: '#8A7F7C', note: 'note?' },
 ] as const
 
-type Category = typeof CATEGORIES[number]
+type CatKey = typeof CATEGORIES[number]['key']
+
+const CAT_GROUPS = [
+  { label: 'groceries',  keys: ['eggs','chicken','vegetables','milk','curd','snacks'] as CatKey[] },
+  { label: 'household',  keys: ['rent','maid','cook'] as CatKey[] },
+  { label: 'spending',   keys: ['transport','food_order','money_home'] as CatKey[] },
+  { label: 'misc',       keys: ['health','shopping','other'] as CatKey[] },
+]
 
 type Expense = {
   id: string
@@ -27,8 +46,8 @@ type Expense = {
   created_at: string
 }
 
-function cat(key: string): Category {
-  return CATEGORIES.find(c => c.key === key) ?? CATEGORIES[5]
+function cat(key: string) {
+  return CATEGORIES.find(c => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1]
 }
 
 export default function ExpensesPage() {
@@ -37,9 +56,9 @@ export default function ExpensesPage() {
   const [monthExpenses, setMonthExpenses] = useState<Expense[]>([])
   const [desc, setDesc]                   = useState('')
   const [amount, setAmount]               = useState('')
-  const [category, setCategory]           = useState('food')
+  const [category, setCategory]           = useState<CatKey>('eggs')
   const [adding, setAdding]               = useState(false)
-  const descRef = useRef<HTMLInputElement>(null)
+  const amountRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadToday(); loadMonth() }, [])
 
@@ -65,9 +84,15 @@ export default function ExpensesPage() {
 
   async function addExpense() {
     const amt = parseFloat(amount)
-    if (!desc.trim() || isNaN(amt) || amt <= 0) return
+    if (isNaN(amt) || amt <= 0) return
     setAdding(true)
-    const entry = { date: TODAY, description: desc.trim(), amount: amt, category }
+    const c = cat(category)
+    const entry = {
+      date: TODAY,
+      description: desc.trim() || c.label,
+      amount: amt,
+      category,
+    }
     const { data } = await supabase.from('expenses').insert(entry).select().single()
     if (data) {
       const e = data as Expense
@@ -77,7 +102,7 @@ export default function ExpensesPage() {
     setDesc('')
     setAmount('')
     setAdding(false)
-    descRef.current?.focus()
+    amountRef.current?.focus()
   }
 
   async function removeExpense(id: string) {
@@ -86,16 +111,12 @@ export default function ExpensesPage() {
     setMonthExpenses(p => p.filter(e => e.id !== id))
   }
 
-  // ── Derived values ────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
 
-  const todayTotal = expenses.reduce((s, e) => s + e.amount, 0)
-
-  const now           = new Date()
-  const daysInMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  const dayOfMonth    = now.getDate()
-  const monthBudget   = DAILY_BUDGET * daysInMonth
-  const monthTotal    = monthExpenses.reduce((s, e) => s + e.amount, 0)
-  const avgPerDay     = dayOfMonth > 0 ? monthTotal / dayOfMonth : 0
+  const todayTotal  = expenses.reduce((s, e) => s + e.amount, 0)
+  const monthTotal  = monthExpenses.reduce((s, e) => s + e.amount, 0)
+  const dayOfMonth  = new Date().getDate()
+  const avgPerDay   = dayOfMonth > 0 ? monthTotal / dayOfMonth : 0
 
   const catTotals = CATEGORIES
     .map(c => ({ ...c, total: monthExpenses.filter(e => e.category === c.key).reduce((s, e) => s + e.amount, 0) }))
@@ -107,11 +128,13 @@ export default function ExpensesPage() {
     const dateStr = d.toISOString().split('T')[0]
     return { date: dateStr, total: monthExpenses.filter(e => e.date === dateStr).reduce((s, e) => s + e.amount, 0) }
   })
-  const maxDay = Math.max(...last30.map(d => d.total), DAILY_BUDGET)
+  const maxDay = Math.max(...last30.map(d => d.total), 1)
 
   const recentDays = Array.from(new Set(monthExpenses.map(e => e.date)))
     .sort((a, b) => b.localeCompare(a))
     .slice(0, 14)
+
+  const selectedCat = cat(category)
 
   return (
     <PasswordGate>
@@ -137,57 +160,64 @@ export default function ExpensesPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Day total */}
-            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <span className="mono-label" style={{ marginBottom: 4 }}>TODAY&apos;S SPENDING</span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink-3)' }}>₹</span>
-                  <span className="num">{todayTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                </div>
-                <div className="num-target">/ ₹{DAILY_BUDGET.toLocaleString()} daily budget</div>
+            <div className="card">
+              <span className="mono-label" style={{ marginBottom: 4 }}>TODAY&apos;S SPENDING</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink-3)' }}>₹</span>
+                <span className="num">{todayTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
               </div>
-              <div>
-                <div className="prog" style={{ width: 140, marginBottom: 6 }}>
-                  <div
-                    className={`prog-fill${todayTotal > DAILY_BUDGET ? ' over' : ''}`}
-                    style={{ width: `${Math.min(todayTotal / DAILY_BUDGET * 100, 100)}%` }}
-                  />
+              {expenses.length > 0 && (
+                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {CATEGORIES.filter(c => expenses.some(e => e.category === c.key)).map(c => {
+                    const t = expenses.filter(e => e.category === c.key).reduce((s, e) => s + e.amount, 0)
+                    return (
+                      <span key={c.key} style={{
+                        fontFamily: 'var(--mono)', fontSize: 11,
+                        padding: '2px 8px', borderRadius: 20,
+                        background: `${c.color}18`, color: c.color,
+                        border: `1px solid ${c.color}40`,
+                      }}>
+                        {c.label} ₹{t.toLocaleString('en-IN')}
+                      </span>
+                    )
+                  })}
                 </div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: todayTotal > DAILY_BUDGET ? 'var(--accent)' : 'var(--ink-3)', textAlign: 'right' }}>
-                  {Math.round(todayTotal / DAILY_BUDGET * 100)}% of budget
-                  {todayTotal > DAILY_BUDGET && ` · ₹${Math.round(todayTotal - DAILY_BUDGET)} over`}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Log expense */}
             <div className="card">
               <span className="mono-label">LOG EXPENSE</span>
-              {/* Category pills */}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                {CATEGORIES.map(c => (
-                  <button
-                    key={c.key}
-                    onClick={() => setCategory(c.key)}
-                    className="pill"
-                    style={category === c.key ? { background: c.color, color: '#fff', borderColor: c.color } : {}}
-                  >
-                    {c.label}
-                  </button>
+
+              {/* Grouped category picker */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                {CAT_GROUPS.map(g => (
+                  <div key={g.label} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.08em', textTransform: 'uppercase', width: 60, flexShrink: 0 }}>
+                      {g.label}
+                    </span>
+                    {g.keys.map(k => {
+                      const c = cat(k)
+                      const on = category === k
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => setCategory(k)}
+                          className="pill"
+                          style={on ? { background: c.color, color: '#fff', borderColor: c.color } : {}}
+                        >
+                          {c.label}
+                        </button>
+                      )
+                    })}
+                  </div>
                 ))}
               </div>
-              {/* Inputs */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8 }}>
-                <input
-                  ref={descRef}
-                  value={desc}
-                  onChange={e => setDesc(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addExpense()}
-                  placeholder="what was this for?"
-                  className="quick-input"
-                />
+
+              {/* Amount + optional note + add */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{
-                  display: 'flex', alignItems: 'stretch',
+                  display: 'flex', alignItems: 'stretch', flex: '0 0 auto',
                   border: '1px solid var(--rule)', borderRadius: 'var(--r)', overflow: 'hidden',
                 }}>
                   <span style={{
@@ -196,23 +226,32 @@ export default function ExpensesPage() {
                     display: 'flex', alignItems: 'center', borderRight: '1px solid var(--rule)',
                   }}>₹</span>
                   <input
+                    ref={amountRef}
                     type="number"
                     min="0"
                     step="1"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addExpense()}
-                    placeholder="0"
+                    placeholder="amount"
                     style={{
-                      width: 88, fontFamily: 'var(--mono)', fontSize: 14,
-                      padding: '0 10px', border: 'none',
+                      width: 100, fontFamily: 'var(--mono)', fontSize: 14,
+                      padding: '11px 10px', border: 'none',
                       background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none',
                     }}
                   />
                 </div>
+                <input
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addExpense()}
+                  placeholder={selectedCat.note || 'note (optional)'}
+                  className="quick-input"
+                  style={{ flex: 1, minWidth: 120 }}
+                />
                 <button
                   onClick={addExpense}
-                  disabled={adding || !desc.trim() || !amount}
+                  disabled={adding || !amount}
                   className="btn btn-primary"
                 >
                   {adding ? '…' : 'add'}
@@ -226,23 +265,24 @@ export default function ExpensesPage() {
                 {expenses.length === 0 ? 'NO ENTRIES YET' : `${expenses.length} ENTR${expenses.length === 1 ? 'Y' : 'IES'} TODAY`}
               </span>
               {expenses.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' }}>nothing logged yet — add your first expense above.</p>
+                <p style={{ fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' }}>nothing logged yet.</p>
               ) : (
                 <>
-                  <div>
-                    {expenses.map(e => (
+                  {expenses.map(e => {
+                    const c = cat(e.category)
+                    return (
                       <div key={e.id} style={{
                         display: 'flex', alignItems: 'center', gap: 12,
                         padding: '11px 0', borderBottom: '1px solid var(--rule)',
                       }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: cat(e.category).color, flexShrink: 0 }} />
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: 'var(--sans)', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {e.description}
                           </div>
-                          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 1 }}>
-                            {cat(e.category).label}
-                          </div>
+                          {e.description !== c.label && (
+                            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 1 }}>{c.label}</div>
+                          )}
                         </div>
                         <div style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 500, flexShrink: 0 }}>
                           ₹{e.amount.toLocaleString('en-IN')}
@@ -252,8 +292,8 @@ export default function ExpensesPage() {
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 18, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
                         >×</button>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12 }}>
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>
                       total &nbsp;₹{todayTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -271,36 +311,18 @@ export default function ExpensesPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Summary cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div className="card">
                 <span className="mono-label">THIS MONTH</span>
                 <div className="num">
                   ₹{(monthTotal / 1000).toFixed(1)}<span style={{ fontSize: 14, color: 'var(--ink-3)' }}>k</span>
                 </div>
-                <div className="num-target">/ ₹{(monthBudget / 1000).toFixed(0)}k budget</div>
-                <div className="prog" style={{ marginTop: 10 }}>
-                  <div
-                    className={`prog-fill${monthTotal > monthBudget ? ' over' : ''}`}
-                    style={{ width: `${Math.min(monthTotal / monthBudget * 100, 100)}%` }}
-                  />
-                </div>
+                <div className="num-target">{monthExpenses.length} entries</div>
               </div>
               <div className="card">
                 <span className="mono-label">DAILY AVG</span>
                 <div className="num num-sm">₹{Math.round(avgPerDay).toLocaleString('en-IN')}</div>
-                <div className="num-target">vs ₹{DAILY_BUDGET} target</div>
-                <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 11, color: avgPerDay > DAILY_BUDGET ? 'var(--accent)' : '#22a06b' }}>
-                  {avgPerDay > DAILY_BUDGET
-                    ? `₹${Math.round(avgPerDay - DAILY_BUDGET)} over/day`
-                    : `₹${Math.round(DAILY_BUDGET - avgPerDay)} under/day`}
-                </div>
-              </div>
-              <div className="card">
-                <span className="mono-label">REMAINING</span>
-                <div className="num num-sm" style={{ color: monthBudget - monthTotal < 0 ? 'var(--accent)' : 'inherit' }}>
-                  ₹{Math.abs(Math.round(monthBudget - monthTotal)).toLocaleString('en-IN')}
-                </div>
-                <div className="num-target">{monthBudget - monthTotal >= 0 ? 'left this month' : 'over budget'}</div>
+                <div className="num-target">over {dayOfMonth} day{dayOfMonth !== 1 ? 's' : ''}</div>
               </div>
             </div>
 
@@ -312,9 +334,9 @@ export default function ExpensesPage() {
                   {catTotals.map(c => (
                     <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-                      <span style={{ fontFamily: 'var(--sans)', fontSize: 13, width: 84, flexShrink: 0, color: 'var(--ink-2)' }}>{c.label}</span>
+                      <span style={{ fontFamily: 'var(--sans)', fontSize: 13, width: 100, flexShrink: 0, color: 'var(--ink-2)' }}>{c.label}</span>
                       <div style={{ flex: 1, height: 4, background: 'var(--rule)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${(c.total / monthTotal) * 100}%`, background: c.color, borderRadius: 2 }} />
+                        <div style={{ height: '100%', width: `${(c.total / catTotals[0].total) * 100}%`, background: c.color, borderRadius: 2 }} />
                       </div>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-2)', flexShrink: 0, minWidth: 72, textAlign: 'right' }}>
                         ₹{c.total.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -340,19 +362,15 @@ export default function ExpensesPage() {
                       flex: 1,
                       height: d.total > 0 ? `${Math.max((d.total / maxDay) * 100, 3)}%` : 0,
                       borderRadius: 2,
-                      background: d.total > DAILY_BUDGET
-                        ? 'var(--accent)'
-                        : d.date === TODAY
-                          ? 'var(--ink-2)'
-                          : 'var(--ink-3)',
-                      opacity: d.date === TODAY ? 1 : 0.38,
+                      background: d.date === TODAY ? 'var(--accent)' : 'var(--ink-3)',
+                      opacity: d.date === TODAY ? 1 : 0.35,
                       transition: 'height 0.3s ease',
                     }}
                   />
                 ))}
               </div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)' }}>
-                red = over ₹{DAILY_BUDGET}/day &nbsp;·&nbsp; today is brighter
+                today highlighted in red
               </div>
             </div>
 
@@ -371,10 +389,7 @@ export default function ExpensesPage() {
                         <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
                           {new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
                         </span>
-                        <span style={{
-                          fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 500,
-                          color: dayTotal > DAILY_BUDGET ? 'var(--accent)' : 'var(--ink-2)',
-                        }}>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)' }}>
                           ₹{dayTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </span>
                       </div>
@@ -385,8 +400,7 @@ export default function ExpensesPage() {
                             <span key={e.id} style={{
                               fontFamily: 'var(--mono)', fontSize: 11,
                               padding: '2px 8px', borderRadius: 20,
-                              background: `${c.color}18`,
-                              color: c.color,
+                              background: `${c.color}18`, color: c.color,
                               border: `1px solid ${c.color}40`,
                             }}>
                               {e.description} ₹{e.amount.toLocaleString('en-IN')}
