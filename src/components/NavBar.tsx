@@ -65,7 +65,7 @@ export default function NavBar() {
               title="Toggle dark mode"
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--ink-3)', fontSize: 14, padding: '2px 4px',
+                color: 'var(--ink-3)', fontSize: 14, padding: '8px 10px',
                 lineHeight: 1, transition: 'color 0.12s',
               }}
             >

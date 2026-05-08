@@ -67,7 +67,7 @@ export default async function Home() {
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '0 24px 96px' }}>
 
       {/* ── Hero ── */}
-      <section style={{ padding: '80px 0 64px', borderBottom: '1px solid var(--rule)', marginBottom: 52 }}>
+      <section className="hero-section">
         <div className="kicker" style={{ marginBottom: 24 }}>
           <span className="kicker-dot" />
           personal site · est. 2025
@@ -92,7 +92,7 @@ export default async function Home() {
           the difference.
         </p>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="hero-cta">
           <Link href="/habits" style={{
             fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500,
             padding: '9px 20px', borderRadius: 4,
@@ -259,8 +259,8 @@ export default async function Home() {
           {/* Currently reading */}
           {reading ? (
             <Link href="/library" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 20 }}>
-              <div style={{ background: 'var(--paper-2)', padding: 20, borderRadius: 6, display: 'grid', gridTemplateColumns: '72px 1fr', gap: 18, alignItems: 'center' }}>
-                <div style={{
+              <div className="reading-card">
+                <div className="reading-card-cover" style={{
                   width: 72, height: 100, background: 'var(--rule)', borderRadius: 3,
                   display: 'flex', alignItems: 'flex-end', padding: 8,
                   fontFamily: 'var(--serif)', fontSize: 9, color: 'var(--ink-3)', lineHeight: 1.2,
@@ -298,8 +298,8 @@ export default async function Home() {
           {/* Recent films */}
           {(films ?? []).map((f: { id: string; title: string; year?: number; watched_at?: string; rating?: number }) => (
             <Link key={f.id} href="/library" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '76px 1fr auto', gap: 16, padding: '14px 0', borderBottom: '1px solid var(--rule)', alignItems: 'center' }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+              <div className="film-row">
+                <div className="film-row-date" style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
                   {f.watched_at ? new Date(f.watched_at).toLocaleDateString('en', { day: 'numeric', month: 'short' }) : '—'}
                 </div>
                 <div>
