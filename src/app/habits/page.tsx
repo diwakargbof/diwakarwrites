@@ -305,6 +305,7 @@ export default function HabitsPage() {
   const [food, setFood] = useState<Food[]>([])
   const [foodInput, setFoodInput] = useState('')
   const [addingFood, setAddingFood] = useState(false)
+  const [loggingFood, setLoggingFood] = useState(false)
   const [heatmap, setHeatmap] = useState<HeatData[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [todayWorkout, setTodayWorkout] = useState<{ type: string; duration_mins: number | null } | null>(null)
@@ -416,11 +417,22 @@ export default function HabitsPage() {
   }
 
   async function logFood() {
-    if (!foodInput.trim()) return
-    const entry = { date: TODAY, meal_type: 'meal', description: foodInput, ...estimate(foodInput) }
-    const { data } = await supabase.from('food_entries').insert(entry).select().single()
-    if (data) setFood(p => [...p, data as Food])
-    setFoodInput(''); setAddingFood(false)
+    if (!foodInput.trim() || loggingFood) return
+    setLoggingFood(true)
+    try {
+      const res = await fetch('/api/nutrition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: foodInput }),
+      })
+      const nutrition = await res.json()
+      const entry = { date: TODAY, meal_type: 'meal', description: foodInput, ...nutrition }
+      const { data } = await supabase.from('food_entries').insert(entry).select().single()
+      if (data) setFood(p => [...p, data as Food])
+      setFoodInput(''); setAddingFood(false)
+    } finally {
+      setLoggingFood(false)
+    }
   }
 
   async function deleteFood(id: string) {
@@ -833,8 +845,8 @@ export default function HabitsPage() {
                 <input className="quick-input" value={foodInput} onChange={e => setFoodInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && logFood()}
                   placeholder="e.g. 3 eggs, oats, banana, 200ml milk" autoFocus />
-                <button className="btn btn-primary btn-sm" onClick={logFood}>Log</button>
-                <button className="btn btn-sm" onClick={() => setAddingFood(false)}>✕</button>
+                <button className="btn btn-primary btn-sm" onClick={logFood} disabled={loggingFood}>{loggingFood ? '…' : 'Log'}</button>
+                <button className="btn btn-sm" onClick={() => setAddingFood(false)} disabled={loggingFood}>✕</button>
               </div>
             )}
             {food.length === 0
@@ -997,32 +1009,3 @@ function HeatmapView({ data, selected, onSelect }: {
   )
 }
 
-// ── Food estimator ────────────────────────────────────────────────────────
-
-function estimate(text: string) {
-  const t = text.toLowerCase()
-  let cal = 0, protein_g = 0, fiber_g = 0
-  const n = (pat: RegExp) => parseInt(t.match(pat)?.[1] || '1')
-  if (t.includes('egg'))    { const c = n(/(\d+)\s*egg/); cal += 70 * c; protein_g += 6 * c }
-  if (t.includes('oats') || t.includes('oatmeal')) { cal += 150; protein_g += 5; fiber_g += 4 }
-  if (t.includes('banana')) { cal += 90; fiber_g += 3 }
-  if (t.includes('milk'))   { cal += 120; protein_g += 8 }
-  if (t.includes('rice'))   { cal += 200; fiber_g += 1 }
-  if (t.includes('dal') || t.includes('lentil')) { cal += 150; protein_g += 10; fiber_g += 6 }
-  if (t.includes('roti') || t.includes('chapati')) { const c = n(/(\d+)\s*roti/); cal += 80 * c; fiber_g += 2 * c }
-  if (t.includes('chicken'))  { cal += 250; protein_g += 30 }
-  if (t.includes('paneer'))   { cal += 180; protein_g += 14 }
-  if (t.includes('whey') || t.includes('protein shake')) { cal += 130; protein_g += 25 }
-  if (t.includes('curd') || t.includes('yogurt')) { cal += 100; protein_g += 8 }
-  if (t.includes('apple'))  { cal += 80; fiber_g += 4 }
-  if (t.includes('bread'))  { const c = n(/(\d+)\s*bread/); cal += 80 * c; protein_g += 3 * c }
-  if (t.includes('peanut butter') || t.includes('pb')) { cal += 190; protein_g += 8; fiber_g += 2 }
-  if (t.includes('coffee'))  { cal += 10 }
-  if (t.includes('almonds') || t.includes('nuts')) { cal += 160; protein_g += 6; fiber_g += 3 }
-  if (t.includes('salmon') || t.includes('fish')) { cal += 200; protein_g += 25 }
-  if (t.includes('rajma') || t.includes('kidney bean')) { cal += 210; protein_g += 14; fiber_g += 8 }
-  if (t.includes('samosa'))  { cal += 260; protein_g += 4; fiber_g += 2 }
-  if (t.includes('dosa'))    { cal += 150; protein_g += 3; fiber_g += 1 }
-  if (t.includes('idli'))    { const c = n(/(\d+)\s*idli/); cal += 40 * c; protein_g += 2 * c }
-  return { calories: cal || 250, protein_g: protein_g || 8, fiber_g: fiber_g || 2 }
-}
