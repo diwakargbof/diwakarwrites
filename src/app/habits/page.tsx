@@ -13,6 +13,18 @@ const TARGETS = {
   sleep: 7, steps: 13000, water: 3700, protein: 140,
   calories: 1900, fiber: 25, meditation: 20, pages_read: 30, pages_written: 2,
 }
+// Mifflin-St Jeor for 27Y, 68kg, 175.26cm (5'9") male
+const BMR = 1645
+function calcTDEE(steps: number, workoutType?: string, workoutMins?: number | null, runKm?: number): number {
+  let burn = BMR
+  burn += (steps || 0) * 0.04
+  if (workoutMins && workoutType && workoutType !== 'Rest') {
+    burn += workoutMins * (workoutType === 'Cardio' ? 9 : workoutType === 'Mobility' ? 3 : 5)
+  }
+  if (runKm) burn += runKm * 70
+  return Math.round(burn)
+}
+
 const MOODS = ['', '😞', '😐', '🙂', '😊', '😄']
 const MOOD_LABELS = ['', 'rough', 'meh', 'okay', 'good', 'great']
 
@@ -295,14 +307,23 @@ export default function HabitsPage() {
   const [addingFood, setAddingFood] = useState(false)
   const [heatmap, setHeatmap] = useState<HeatData[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [todayWorkout, setTodayWorkout] = useState<{ type: string; duration_mins: number | null } | null>(null)
+  const [todayRuns,    setTodayRuns]    = useState<{ distance_km: number; duration_mins: number }[]>([])
+  const [netHistory,   setNetHistory]   = useState<{ date: string; foodCal: number; tdee: number; net: number }[]>([])
 
-  useEffect(() => { loadToday(); loadHeatmap() }, [])
+  useEffect(() => { loadToday(); loadHeatmap(); loadNetHistory() }, [])
 
   async function loadToday() {
     const { data: h } = await supabase.from('habit_logs').select('*').eq('date', TODAY).single()
     if (h) setLog({ ...EMPTY_LOG, ...h })
-    const { data: f } = await supabase.from('food_entries').select('*').eq('date', TODAY).order('created_at')
-    if (f) setFood(f as Food[])
+    const [{ data: f }, { data: ws }, { data: rs }] = await Promise.all([
+      supabase.from('food_entries').select('*').eq('date', TODAY).order('created_at'),
+      supabase.from('workout_sessions').select('type,duration_mins').eq('date', TODAY).maybeSingle(),
+      supabase.from('run_sessions').select('distance_km,duration_mins').eq('date', TODAY),
+    ])
+    if (f)  setFood(f as Food[])
+    if (ws) setTodayWorkout(ws as { type: string; duration_mins: number | null })
+    if (rs) setTodayRuns(rs as { distance_km: number; duration_mins: number }[])
   }
 
   async function loadHeatmap() {
@@ -339,6 +360,28 @@ export default function HabitsPage() {
         Math.min((d.pages_read || 0) / TARGETS.pages_read, 1)
       ) / 6,
     })))
+  }
+
+  async function loadNetHistory() {
+    const [{ data: allFood }, { data: allLogs }, { data: allWorkouts }, { data: allRuns }] = await Promise.all([
+      supabase.from('food_entries').select('date,calories').order('date'),
+      supabase.from('habit_logs').select('date,steps').order('date'),
+      supabase.from('workout_sessions').select('date,type,duration_mins').order('date'),
+      supabase.from('run_sessions').select('date,distance_km').order('date'),
+    ])
+    if (!allFood?.length) return
+    const foodByDate = new Map<string, number>()
+    for (const f of allFood) foodByDate.set(f.date, (foodByDate.get(f.date) || 0) + (f.calories || 0))
+    const logByDate     = new Map((allLogs     || []).map(l => [l.date, l.steps || 0]))
+    const workoutByDate = new Map((allWorkouts || []).map(w => [w.date, { type: w.type as string, mins: w.duration_mins as number | null }]))
+    const runByDate     = new Map<string, number>()
+    for (const r of allRuns || []) runByDate.set(r.date, (runByDate.get(r.date) || 0) + r.distance_km)
+    const result = Array.from(foodByDate.entries()).map(([date, foodCal]) => {
+      const w    = workoutByDate.get(date)
+      const tdee = calcTDEE(logByDate.get(date) || 0, w?.type, w?.mins, runByDate.get(date) || 0)
+      return { date, foodCal, tdee, net: foodCal - tdee }
+    }).sort((a, b) => a.date.localeCompare(b.date))
+    setNetHistory(result)
   }
 
   function update(field: keyof Log, value: number | boolean | string | null) {
@@ -400,6 +443,33 @@ export default function HabitsPage() {
 
   const selectedDay = selectedDate ? heatmap.find(d => d.date === selectedDate) : null
 
+  // ── Net calories ──────────────────────────────────────────────────────────
+  const runKmToday  = todayRuns.reduce((s, r) => s + r.distance_km, 0)
+  const todayTDEE   = calcTDEE(log.steps || 0, todayWorkout?.type, todayWorkout?.duration_mins, runKmToday)
+  const todayNet    = totals.cal - todayTDEE
+
+  const weekStartStr = (() => {
+    const d = new Date(); const day = d.getDay()
+    const mon = new Date(d); mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+    return mon.toISOString().split('T')[0]
+  })()
+  const monthStartStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
+
+  const pastDays  = netHistory.filter(d => d.date !== TODAY)
+  const weekNet   = pastDays.filter(d => d.date >= weekStartStr).reduce((s, d) => s + d.net, 0) + todayNet
+  const monthNet  = pastDays.filter(d => d.date >= monthStartStr).reduce((s, d) => s + d.net, 0) + todayNet
+  const allTimeNet = pastDays.reduce((s, d) => s + d.net, 0) + todayNet
+
+  const burnBreakdown = [
+    `BMR ${BMR}`,
+    (log.steps || 0) > 0 ? `+ steps ${Math.round((log.steps || 0) * 0.04)}` : null,
+    todayWorkout && todayWorkout.type !== 'Rest' && todayWorkout.duration_mins
+      ? `+ ${todayWorkout.type.toLowerCase()} ${Math.round(todayWorkout.duration_mins * (todayWorkout.type === 'Cardio' ? 9 : todayWorkout.type === 'Mobility' ? 3 : 5))}`
+      : null,
+    runKmToday > 0 ? `+ run ${Math.round(runKmToday * 70)}` : null,
+    `= ${todayTDEE.toLocaleString()} burned`,
+  ].filter(Boolean).join('  ')
+
   return (
     <PasswordGate>
     <div className="page-wrap">
@@ -456,6 +526,54 @@ export default function HabitsPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Net Calories */}
+          <div className="card">
+            <span className="mono-label">NET CALORIES</span>
+            {food.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' }}>Log food to see net calories.</p>
+            ) : (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', marginBottom: 8 }}>
+                    {totals.cal.toLocaleString()} kcal eaten · {todayTDEE.toLocaleString()} kcal burned
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{
+                      fontFamily: 'var(--mono)', fontSize: 32, fontWeight: 600,
+                      color: todayNet <= 0 ? '#22a06b' : 'var(--accent)',
+                    }}>
+                      {todayNet > 0 ? '+' : ''}{todayNet.toLocaleString()}
+                    </span>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: todayNet <= 0 ? '#22a06b' : 'var(--accent)' }}>
+                      kcal · {todayNet <= 0 ? 'deficit' : 'surplus'}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginTop: 6 }}>
+                    {burnBreakdown}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  {([
+                    { label: 'this week',  net: weekNet },
+                    { label: 'this month', net: monthNet },
+                    { label: 'all time',   net: allTimeNet },
+                  ] as const).map(({ label, net }) => (
+                    <div key={label} style={{ textAlign: 'center' }}>
+                      <div style={{
+                        fontFamily: 'var(--mono)', fontSize: 17, fontWeight: 600,
+                        color: net <= 0 ? '#22a06b' : 'var(--accent)',
+                      }}>
+                        {net > 0 ? '+' : ''}{Math.abs(net) >= 1000 ? `${(net / 1000).toFixed(1)}k` : String(net)}
+                      </div>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', marginTop: 3 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Sleep / Steps / Water */}
