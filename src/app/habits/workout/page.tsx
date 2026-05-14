@@ -50,6 +50,8 @@ export default function WorkoutPage() {
   const [saved,       setSaved]       = useState(false)
   const [existingId,  setExistingId]  = useState<string | null>(null)
   const [history,     setHistory]     = useState<WorkoutSession[]>([])
+  const [collapsedEx,   setCollapsedEx]   = useState<Set<number>>(new Set())
+  const [collapsedSets, setCollapsedSets] = useState<Set<string>>(new Set())
 
   // runs
   const [runs,       setRuns]       = useState<RunSession[]>([])
@@ -107,7 +109,31 @@ export default function WorkoutPage() {
     }])
   }
 
-  function removeEx(ei: number) { setExercises(p => p.filter((_, i) => i !== ei)) }
+  function toggleCollapseEx(ei: number) {
+    setCollapsedEx(prev => {
+      const next = new Set(prev)
+      if (next.has(ei)) next.delete(ei); else next.add(ei)
+      return next
+    })
+  }
+
+  function toggleCollapseSet(ei: number, si: number) {
+    const key = `${ei}-${si}`
+    setCollapsedSets(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
+
+  function removeEx(ei: number) {
+    setExercises(p => p.filter((_, i) => i !== ei))
+    setCollapsedEx(prev => {
+      const next = new Set<number>()
+      prev.forEach(i => { if (i < ei) next.add(i); else if (i > ei) next.add(i - 1) })
+      return next
+    })
+  }
 
   function moveEx(i: number, dir: -1 | 1) {
     setExercises(p => {
@@ -240,11 +266,14 @@ export default function WorkoutPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {exercises.map((ex, ei) => (
+              {exercises.map((ex, ei) => {
+                const exCollapsed = collapsedEx.has(ei)
+                const exVol = ex.sets.reduce((s, set) => s + set.reps * set.weight, 0)
+                return (
                 <div key={ei} style={{ padding: 16, background: 'var(--paper-2)', borderRadius: 8 }}>
 
                   {/* Exercise name row */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: exCollapsed ? 0 : 16 }}>
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', minWidth: 22 }}>#{ei + 1}</span>
                     <input
                       value={ex.name} onChange={e => updateExName(ei, e.target.value)}
@@ -252,7 +281,10 @@ export default function WorkoutPage() {
                       className="inp"
                       style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}
                     />
-                    <div style={{ display: 'flex', gap: 2 }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <button onClick={() => toggleCollapseEx(ei)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, padding: '2px 4px' }}>
+                        {exCollapsed ? '▸' : '▾'}
+                      </button>
                       {ei > 0 && (
                         <button onClick={() => moveEx(ei, -1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 12, padding: '2px 4px' }}>↑</button>
                       )}
@@ -263,56 +295,82 @@ export default function WorkoutPage() {
                     </div>
                   </div>
 
-                  {/* Per-set rows */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {ex.sets.map((set, si) => (
-                      <div key={si} style={{ paddingLeft: 12, borderLeft: '2px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', fontWeight: 500 }}>
-                            Set {si + 1}
-                            {set.reps > 0 && (
-                              <span style={{ fontWeight: 400, color: 'var(--ink-4)' }}>
-                                {' '}· {set.weight > 0 ? `${set.reps} reps @ ${set.weight}kg` : `${set.reps} reps BW`}
-                              </span>
-                            )}
-                          </span>
-                          {ex.sets.length > 1 && (
-                            <button onClick={() => removeSet(ei, si)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 16, padding: 0 }}>−</button>
-                          )}
-                        </div>
-
-                        <div>
-                          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.07em', marginBottom: 5 }}>REPS</div>
-                          <PillPicker opts={REP_OPTS} value={set.reps} onChange={v => updateSet(ei, si, 'reps', v)} />
-                        </div>
-
-                        <div>
-                          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.07em', marginBottom: 5 }}>WEIGHT kg &mdash; 0 = bodyweight</div>
-                          <PillPicker opts={WEIGHT_OPTS} value={set.weight} onChange={v => updateSet(ei, si, 'weight', v)} fmt={v => v === 0 ? 'BW' : String(v)} />
-                        </div>
-                      </div>
-                    ))}
-
-                    <button className="btn btn-ghost btn-sm" onClick={() => addSet(ei)}
-                      style={{ alignSelf: 'flex-start', marginLeft: 12, color: 'var(--ink-3)' }}>
-                      + add set
-                    </button>
-                  </div>
-
-                  {/* Note */}
-                  <input value={ex.note} onChange={e => updateExNote(ei, e.target.value)}
-                    placeholder="Note (RPE, PR!, slow eccentric…)"
-                    className="inp"
-                    style={{ marginTop: 12, fontSize: 12 }} />
-
-                  {/* Volume summary */}
-                  {ex.sets.some(s => s.weight > 0) && (
-                    <div style={{ marginTop: 6, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>
-                      {ex.sets.length} sets · {ex.sets.reduce((s, set) => s + set.reps * set.weight, 0).toLocaleString()}kg volume
+                  {/* Collapsed summary */}
+                  {exCollapsed && (
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', paddingLeft: 22 }}>
+                      {ex.sets.length} sets{exVol > 0 ? ` · ${exVol.toLocaleString()}kg vol` : ''}
+                      {ex.note ? ` · ${ex.note}` : ''}
                     </div>
                   )}
+
+                  {/* Per-set rows */}
+                  {!exCollapsed && (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {ex.sets.map((set, si) => {
+                          const setKey = `${ei}-${si}`
+                          const setCollapsed = collapsedSets.has(setKey)
+                          return (
+                            <div key={si} style={{ paddingLeft: 12, borderLeft: '2px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', fontWeight: 500 }}>
+                                  Set {si + 1}
+                                  {set.reps > 0 && (
+                                    <span style={{ fontWeight: 400, color: 'var(--ink-4)' }}>
+                                      {' '}· {set.weight > 0 ? `${set.reps} reps @ ${set.weight}kg` : `${set.reps} reps BW`}
+                                    </span>
+                                  )}
+                                </span>
+                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                  <button onClick={() => toggleCollapseSet(ei, si)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 11, padding: '1px 4px' }}>
+                                    {setCollapsed ? '▸' : '▾'}
+                                  </button>
+                                  {ex.sets.length > 1 && (
+                                    <button onClick={() => removeSet(ei, si)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 16, padding: 0 }}>−</button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {!setCollapsed && (
+                                <>
+                                  <div>
+                                    <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.07em', marginBottom: 5 }}>REPS</div>
+                                    <PillPicker opts={REP_OPTS} value={set.reps} onChange={v => updateSet(ei, si, 'reps', v)} />
+                                  </div>
+
+                                  <div>
+                                    <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.07em', marginBottom: 5 }}>WEIGHT kg &mdash; 0 = bodyweight</div>
+                                    <PillPicker opts={WEIGHT_OPTS} value={set.weight} onChange={v => updateSet(ei, si, 'weight', v)} fmt={v => v === 0 ? 'BW' : String(v)} />
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )
+                        })}
+
+                        <button className="btn btn-ghost btn-sm" onClick={() => addSet(ei)}
+                          style={{ alignSelf: 'flex-start', marginLeft: 12, color: 'var(--ink-3)' }}>
+                          + add set
+                        </button>
+                      </div>
+
+                      {/* Note */}
+                      <input value={ex.note} onChange={e => updateExNote(ei, e.target.value)}
+                        placeholder="Note (RPE, PR!, slow eccentric…)"
+                        className="inp"
+                        style={{ marginTop: 12, fontSize: 12 }} />
+
+                      {/* Volume summary */}
+                      {ex.sets.some(s => s.weight > 0) && (
+                        <div style={{ marginTop: 6, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>
+                          {ex.sets.length} sets · {exVol.toLocaleString()}kg volume
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              ))}
+              )})}
+
             </div>
 
             {exercises.length > 0 && (
