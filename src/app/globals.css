@@ -669,4 +669,7 @@ hr.rule { border: none; border-top: 1px solid var(--rule); }
 
   /* Hero reduced padding */
   .hero-section { padding: 44px 0 40px; margin-bottom: 36px; }
+
+  /* Stat strip: 2×2 on mobile */
+  .hero-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }

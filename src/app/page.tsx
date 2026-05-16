@@ -67,48 +67,49 @@ export default async function Home() {
     <div style={{ maxWidth: 1040, margin: '0 auto', padding: '0 24px 96px' }}>
 
       {/* ── Hero ── */}
-      <section className="hero-section">
-        <div className="kicker" style={{ marginBottom: 24 }}>
+      <section className="hero-section" style={{ paddingBottom: 52 }}>
+        <div className="kicker" style={{ marginBottom: 28 }}>
           <span className="kicker-dot" />
-          personal site · est. 2025
+          Diwakar Reddy · est. 2025
         </div>
 
         <h1 style={{
           fontFamily: 'var(--serif)', fontWeight: 400,
-          fontSize: 'clamp(42px, 7vw, 72px)', lineHeight: 1.05,
-          letterSpacing: '-0.025em', marginBottom: 24,
+          fontSize: 'clamp(38px, 6.5vw, 66px)', lineHeight: 1.06,
+          letterSpacing: '-0.025em', marginBottom: 44, maxWidth: 680,
         }}>
-          Diwakar&apos;s<br />
-          <em style={{ color: 'var(--accent)', fontStyle: 'italic' }}>notebook</em>, gym log, &amp; library.
+          Writing, moving,<br />
+          <em style={{ color: 'var(--accent)', fontStyle: 'italic' }}>paying attention</em>.
         </h1>
 
-        <p style={{
-          fontFamily: 'var(--serif)', fontStyle: 'italic',
-          fontSize: 20, color: 'var(--ink-3)',
-          maxWidth: 580, lineHeight: 1.65, marginBottom: 36,
+        {/* Live stat strip */}
+        <div className="hero-stats-grid" style={{
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 1, background: 'var(--rule)',
+          border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden',
         }}>
-          A small, slow place on the internet. I track what I do with my body and what I
-          do with my mind, and occasionally I write something down so I don&apos;t forget
-          the difference.
-        </p>
-
-        <div className="hero-cta">
-          <Link href="/habits" style={{
-            fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500,
-            padding: '9px 20px', borderRadius: 4,
-            background: 'var(--accent)', color: '#fff',
-            border: '1px solid var(--accent)', textDecoration: 'none',
-          }}>
-            Open today
-          </Link>
-          <Link href="/write" style={{
-            fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500,
-            padding: '9px 20px', borderRadius: 4,
-            background: 'transparent', color: 'var(--ink)',
-            border: '1px solid var(--rule)', textDecoration: 'none',
-          }}>
-            Write something
-          </Link>
+          {[
+            { value: streakDays > 0 ? String(streakDays) : '—', label: 'day streak', accent: streakDays > 0 },
+            { value: bookWords > 0 ? bookWords.toLocaleString() : '—', label: 'words drafted', accent: false },
+            { value: String(totalEntries), label: totalEntries === 1 ? 'entry written' : 'entries written', accent: false },
+            { value: String(booksCount), label: 'books on shelf', accent: false },
+          ].map(({ value, label, accent }) => (
+            <div key={label} style={{ background: 'var(--paper)', padding: '22px 24px' }}>
+              <div style={{
+                fontFamily: 'var(--mono)', fontSize: 'clamp(22px, 3vw, 32px)',
+                fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 1,
+                color: accent ? 'var(--accent)' : 'var(--ink)',
+              }}>
+                {value}
+              </div>
+              <div style={{
+                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
+                marginTop: 7, letterSpacing: '0.08em', textTransform: 'uppercase',
+              }}>
+                {label}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
