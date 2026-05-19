@@ -143,6 +143,33 @@ export default function DayPlanner() {
   const [gDate, setGDate] = useState('')
   const [gPriority, setGPriority] = useState(3)
 
+  // Client-side meeting reminders — fires a local notification 10 min before each meeting
+  useEffect(() => {
+    if (!meetings.length || Notification.permission !== 'granted') return
+    const today = new Date().toISOString().split('T')[0]
+    const todayMeetings = meetings.filter(m => m.date === today)
+    const timers: ReturnType<typeof setTimeout>[] = []
+
+    for (const m of todayMeetings) {
+      const [h, min] = String(m.start_time).slice(0, 5).split(':').map(Number)
+      const meetingMs = new Date().setHours(h, min, 0, 0)
+      const reminderMs = meetingMs - 10 * 60 * 1000
+      const delay = reminderMs - Date.now()
+      if (delay < 0) continue // already passed
+
+      timers.push(
+        setTimeout(() => {
+          new Notification(`meeting in 10 min`, {
+            body: `${m.title}${m.walkpad_friendly ? ' — walkpad ok' : ''}`,
+            tag: `meeting-${m.id}`,
+            requireInteraction: true,
+          })
+        }, delay)
+      )
+    }
+    return () => timers.forEach(clearTimeout)
+  }, [meetings])
+
   const loadPlan = useCallback(async (d: string) => {
     const res = await fetch(`/api/schedule/day-plan?date=${d}`)
     if (res.ok) {
