@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ChatPanel from '@/components/ChatPanel'
 import PasswordGate from '@/components/PasswordGate'
-import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport, UIMessage } from 'ai'
 
 const TODAY = new Date().toISOString().split('T')[0]
 const TARGETS = {
@@ -28,6 +26,11 @@ function calcTDEE(steps: number, workoutType?: string, workoutMins?: number | nu
 const MOODS = ['', '😞', '😐', '🙂', '😊', '😄']
 const MOOD_LABELS = ['', 'rough', 'meh', 'okay', 'good', 'great']
 
+// Weight loss goal: 6 kg → 61.5 kg, started 2026-05-19
+const GOAL_START_DATE = '2026-05-19'
+const GOAL_KG = 6
+const GOAL_DEFICIT_KCAL = GOAL_KG * 7700  // 46,200 kcal
+
 type Log = {
   date: string
   sleep_hours: number
@@ -36,15 +39,13 @@ type Log = {
   steps: number
   water_ml: number
   weight_kg: number | null
-  chess_games: number
-  chess_wins: number
   mood: number | null
   meditation_min: number
   pages_read: number
   pages_written: number
   face_care: boolean
   oral_care: boolean
-  content_created: boolean
+  dream_notes: string | null
 }
 
 type Food = {
@@ -59,17 +60,18 @@ type Food = {
 type HeatData = {
   date: string; score: number
   sleep_hours: number; steps: number; water_ml: number; weight_kg: number | null
-  chess_games: number; chess_wins: number; mood: number | null
+  mood: number | null
   meditation_min: number; pages_read: number; pages_written: number
-  face_care: boolean; oral_care: boolean; content_created: boolean
+  face_care: boolean; oral_care: boolean
 }
 
 const EMPTY_LOG: Log = {
   date: TODAY, sleep_hours: 0, sleep_time: null, wake_time: null,
   steps: 0, water_ml: 0, weight_kg: null,
-  chess_games: 0, chess_wins: 0, mood: null,
+  mood: null,
   meditation_min: 0, pages_read: 0, pages_written: 0,
-  face_care: false, oral_care: false, content_created: false,
+  face_care: false, oral_care: false,
+  dream_notes: null,
 }
 
 function computeSleepHours(sleepTime: string, wakeTime: string): number {
@@ -175,128 +177,6 @@ function NumInput({ value, onCommit, width = 72 }: { value: number; onCommit: (n
   )
 }
 
-// ── Inline content brainstorm chat ────────────────────────────────────────
-
-function ContentChat() {
-  const [open, setOpen] = useState(false)
-  const [input, setInput] = useState('')
-  const endRef = useRef<HTMLDivElement>(null)
-
-  const transport = useRef(new DefaultChatTransport({ api: '/api/chat/content' })).current
-  const { messages, sendMessage, status, setMessages } = useChat({ transport })
-  const isLoading = status === 'submitted' || status === 'streaming'
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
-
-  function getText(m: UIMessage) {
-    return m.parts.filter((p): p is { type: 'text'; text: string } => p.type === 'text').map(p => p.text).join('')
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
-    sendMessage({ text: input })
-    setInput('')
-  }
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: 'var(--accent)', color: '#fff',
-          border: 'none', borderRadius: 6, padding: '8px 16px',
-          fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500,
-          cursor: 'pointer', transition: 'opacity 0.15s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-      >
-        <span>▶</span> Brainstorm ideas
-      </button>
-    )
-  }
-
-  return (
-    <div style={{
-      border: '1px solid var(--rule)', borderRadius: 8,
-      overflow: 'hidden', marginTop: 4,
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '10px 14px', background: 'var(--paper-2)',
-        borderBottom: '1px solid var(--rule)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: '#b07a2a', fontSize: 13 }}>▶</span>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500 }}>Content brainstorm</span>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {messages.length > 0 && (
-            <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', padding: '2px 6px' }}>clear</button>
-          )}
-          <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-4)', fontSize: 16, padding: '0 4px', lineHeight: 1 }}>×</button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div style={{ maxHeight: 320, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {messages.length === 0 && (
-          <p style={{ fontFamily: 'var(--serif)', fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, margin: 0 }}>
-            Let&apos;s make something. Tell me what&apos;s on your mind — a rough idea, a theme, a platform — and I&apos;ll help you shape it.
-          </p>
-        )}
-        {messages.map(m => (
-          <div key={m.id} style={{
-            alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-            maxWidth: '90%',
-            padding: '8px 12px',
-            borderRadius: m.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
-            background: m.role === 'user' ? '#b07a2a' : 'var(--paper-2)',
-            color: m.role === 'user' ? '#fff' : 'var(--ink)',
-            fontSize: 13, lineHeight: 1.6,
-            fontFamily: m.role === 'user' ? 'var(--sans)' : 'var(--serif)',
-            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-          }}>
-            {getText(m)}
-          </div>
-        ))}
-        {isLoading && (
-          <div style={{ alignSelf: 'flex-start', padding: '8px 12px', borderRadius: '10px 10px 10px 2px', background: 'var(--paper-2)' }}>
-            <span style={{ display: 'flex', gap: 4 }}>
-              {[0, 1, 2].map(i => (
-                <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--ink-3)', display: 'inline-block', animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-              ))}
-            </span>
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      {/* Input */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, padding: '10px 12px', borderTop: '1px solid var(--rule)', background: 'var(--paper)' }}>
-        <input
-          value={input} onChange={e => setInput(e.target.value)}
-          placeholder="What do you want to make today?"
-          disabled={isLoading}
-          style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 12, padding: '7px 10px', border: '1px solid var(--rule)', borderRadius: 6, background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none' }}
-        />
-        <button type="submit" disabled={isLoading || !input.trim()} style={{
-          background: '#b07a2a', color: '#fff', border: 'none', borderRadius: 6,
-          padding: '7px 12px', cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 12,
-          opacity: isLoading || !input.trim() ? 0.5 : 1,
-        }}>
-          {isLoading ? '…' : '↑'}
-        </button>
-      </form>
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────
 
 export default function HabitsPage() {
@@ -311,6 +191,7 @@ export default function HabitsPage() {
   const [todayWorkout, setTodayWorkout] = useState<{ type: string; duration_mins: number | null } | null>(null)
   const [todayRuns,    setTodayRuns]    = useState<{ distance_km: number; duration_mins: number }[]>([])
   const [netHistory,   setNetHistory]   = useState<{ date: string; foodCal: number; tdee: number; net: number }[]>([])
+  const [isListening,  setIsListening]  = useState(false)
 
   useEffect(() => { loadToday(); loadHeatmap(); loadNetHistory() }, [])
 
@@ -332,7 +213,7 @@ export default function HabitsPage() {
     const fromStr = from.toISOString().split('T')[0]
     const [{ data: logs }, { data: foodDates }] = await Promise.all([
       supabase.from('habit_logs')
-        .select('date,sleep_hours,steps,water_ml,weight_kg,chess_games,chess_wins,mood,meditation_min,pages_read,pages_written,face_care,oral_care,content_created')
+        .select('date,sleep_hours,steps,water_ml,weight_kg,mood,meditation_min,pages_read,pages_written,face_care,oral_care')
         .gte('date', fromStr).order('date'),
       supabase.from('food_entries').select('date').gte('date', fromStr),
     ])
@@ -343,15 +224,12 @@ export default function HabitsPage() {
       steps: d.steps || 0,
       water_ml: d.water_ml || 0,
       weight_kg: d.weight_kg ?? null,
-      chess_games: d.chess_games || 0,
-      chess_wins: d.chess_wins || 0,
       mood: d.mood ?? null,
       meditation_min: d.meditation_min || 0,
       pages_read: d.pages_read || 0,
       pages_written: d.pages_written || 0,
       face_care: d.face_care || false,
       oral_care: d.oral_care || false,
-      content_created: d.content_created || false,
       score: (
         Math.min((d.sleep_hours || 0) / TARGETS.sleep, 1) +
         Math.min((d.steps || 0) / TARGETS.steps, 1) +
@@ -395,25 +273,22 @@ export default function HabitsPage() {
     })
   }
 
-  function logChess(win: boolean) {
-    setLog(prev => {
-      const next = { ...prev, chess_games: prev.chess_games + 1, chess_wins: prev.chess_wins + (win ? 1 : 0) }
-      supabase.from('habit_logs').upsert(next, { onConflict: 'date' }).then(({ error }) => {
-        if (error) console.error('habit_logs upsert failed:', error)
-      })
-      return next
-    })
-  }
-
-  function undoChess() {
-    setLog(prev => {
-      if (prev.chess_games === 0) return prev
-      const next = { ...prev, chess_games: prev.chess_games - 1, chess_wins: Math.min(prev.chess_wins, prev.chess_games - 1) }
-      supabase.from('habit_logs').upsert(next, { onConflict: 'date' }).then(({ error }) => {
-        if (error) console.error('habit_logs upsert failed:', error)
-      })
-      return next
-    })
+  function startListening() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) { alert('Speech recognition not supported in this browser.'); return }
+    const rec = new SR()
+    rec.lang = 'en-US'
+    rec.interimResults = false
+    setIsListening(true)
+    rec.start()
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript
+      const next = log.dream_notes ? log.dream_notes + ' ' + transcript : transcript
+      update('dream_notes', next)
+      setIsListening(false)
+    }
+    rec.onerror = () => setIsListening(false)
+    rec.onend   = () => setIsListening(false)
   }
 
   async function logFood() {
@@ -447,7 +322,6 @@ export default function HabitsPage() {
   const recent30 = heatmap.slice(-30)
   const sleepTrend      = recent30.map(d => d.sleep_hours)
   const stepsTrend      = recent30.map(d => d.steps)
-  const chessTrend      = recent30.map(d => d.chess_games)
   const meditationTrend = recent30.map(d => d.meditation_min)
   const pagesReadTrend  = recent30.map(d => d.pages_read)
   const weightHistory   = heatmap.filter(d => d.weight_kg !== null).map(d => d.weight_kg as number)
@@ -471,6 +345,13 @@ export default function HabitsPage() {
   const weekNet   = pastDays.filter(d => d.date >= weekStartStr).reduce((s, d) => s + d.net, 0) + todayNet
   const monthNet  = pastDays.filter(d => d.date >= monthStartStr).reduce((s, d) => s + d.net, 0) + todayNet
   const allTimeNet = pastDays.reduce((s, d) => s + d.net, 0) + todayNet
+
+  // Weight loss goal: cumulative deficit since GOAL_START_DATE (negative net = deficit)
+  const goalPastNet   = netHistory.filter(d => d.date >= GOAL_START_DATE && d.date !== TODAY).reduce((s, d) => s + d.net, 0)
+  const goalTotalNet  = goalPastNet + todayNet
+  const goalAccumulated = -goalTotalNet  // positive = deficit accumulated
+  const goalRemaining   = GOAL_DEFICIT_KCAL - goalAccumulated
+  const goalProgress    = Math.min(Math.max(goalAccumulated / GOAL_DEFICIT_KCAL, 0), 1)
 
   const burnBreakdown = [
     `BMR ${BMR}`,
@@ -588,8 +469,50 @@ export default function HabitsPage() {
             )}
           </div>
 
+          {/* Weight Loss Goal */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+              <span className="mono-label" style={{ marginBottom: 0 }}>WEIGHT LOSS GOAL</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>→ 61.5 kg (−{GOAL_KG} kg)</span>
+            </div>
+            <div className="h-goal-pair">
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 26, fontWeight: 600, color: goalAccumulated >= 0 ? '#22a06b' : 'var(--accent)' }}>
+                  {goalAccumulated >= 0 ? goalAccumulated.toLocaleString() : '0'}
+                  <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--ink-3)', marginLeft: 4 }}>kcal deficit</span>
+                </div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 2 }}>
+                  so far since {GOAL_START_DATE}
+                </div>
+              </div>
+              <div className="h-goal-split">
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 26, fontWeight: 600, color: 'var(--ink-2)' }}>
+                  {GOAL_DEFICIT_KCAL.toLocaleString()}
+                  <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--ink-3)', marginLeft: 4 }}>kcal total</span>
+                </div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 2 }}>
+                  needed to lose {GOAL_KG} kg
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <div className="prog">
+                <div className="prog-fill" style={{ width: `${goalProgress * 100}%`, background: '#22a06b' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)' }}>
+              <span>{(goalProgress * 100).toFixed(1)}% of goal</span>
+              <span>{goalRemaining > 0 ? `${goalRemaining.toLocaleString()} kcal remaining` : 'goal reached!'}</span>
+            </div>
+            {goalAccumulated < 0 && (
+              <div style={{ marginTop: 10, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)' }}>
+                currently {Math.abs(Math.round(goalAccumulated)).toLocaleString()} kcal in surplus since goal start
+              </div>
+            )}
+          </div>
+
           {/* Sleep / Steps / Water */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+          <div className="h-grid-3">
             <div className="card">
               <span className="mono-label">SLEEP</span>
               <div className="num">
@@ -668,7 +591,7 @@ export default function HabitsPage() {
           </div>
 
           {/* Meditation + Reading */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="h-grid-2">
             {/* Meditation */}
             <div className="card">
               <span className="mono-label">MEDITATION</span>
@@ -714,7 +637,7 @@ export default function HabitsPage() {
           </div>
 
           {/* Pages written + Self-care */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="h-grid-2">
             {/* Pages written */}
             <div className="card">
               <span className="mono-label">PAGES WRITTEN</span>
@@ -765,73 +688,24 @@ export default function HabitsPage() {
             </div>
           </div>
 
-          {/* Weight + Chess */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div className="card">
-              <span className="mono-label">WEIGHT</span>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div className="num num-sm">
-                    {log.weight_kg !== null && log.weight_kg > 0 ? log.weight_kg : '—'}
-                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}> kg</span>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <NumInput value={log.weight_kg || 0} onCommit={v => update('weight_kg', v > 0 ? v : null)} width={80} />
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginTop: 4 }}>
-                      {weightHistory.length > 0 ? `prev: ${weightHistory[weightHistory.length - 1]}kg` : 'enter today\'s weight'}
-                    </div>
-                  </div>
-                </div>
-                {weightHistory.length >= 3 && <Sparkline values={weightHistory.slice(-14)} width={96} height={48} />}
-              </div>
-            </div>
-
-            <div className="card">
-              <span className="mono-label">CHESS</span>
-              <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 12 }}>
-                <div>
-                  <div className="num num-sm">{log.chess_games}</div>
-                  <div className="num-target">games today</div>
-                </div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>
-                  <span style={{ color: 'var(--accent)' }}>{log.chess_wins}W</span>
-                  <span style={{ color: 'var(--ink-4)' }}> · {log.chess_games - log.chess_wins}L</span>
-                  {log.chess_games > 0 && (
-                    <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>
-                      {Math.round((log.chess_wins / log.chess_games) * 100)}% win rate
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn btn-sm" onClick={() => logChess(true)} style={{ background: 'var(--accent)', color: '#fff', border: 'none' }}>+ Win</button>
-                <button className="btn btn-sm" onClick={() => logChess(false)}>+ Loss</button>
-                {log.chess_games > 0 && <button className="btn btn-sm btn-ghost" onClick={undoChess} style={{ color: 'var(--ink-4)' }}>undo</button>}
-              </div>
-            </div>
-          </div>
-
-          {/* Content creation */}
+          {/* Weight */}
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <span className="mono-label">WEIGHT</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <span className="mono-label" style={{ marginBottom: 4 }}>CONTENT CREATION</span>
-                <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Did you create something today?</div>
+                <div className="num num-sm">
+                  {log.weight_kg !== null && log.weight_kg > 0 ? log.weight_kg : '—'}
+                  <span style={{ fontSize: 13, color: 'var(--ink-3)' }}> kg</span>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <NumInput value={log.weight_kg || 0} onCommit={v => update('weight_kg', v > 0 ? v : null)} width={80} />
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginTop: 4 }}>
+                    {weightHistory.length > 0 ? `prev: ${weightHistory[weightHistory.length - 1]}kg` : 'enter today\'s weight'}
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={() => update('content_created', !log.content_created)}
-                style={{
-                  padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500,
-                  border: `1px solid ${log.content_created ? '#22a06b' : 'var(--rule)'}`,
-                  background: log.content_created ? 'rgba(34,160,107,0.08)' : 'var(--paper-2)',
-                  color: log.content_created ? '#22a06b' : 'var(--ink-2)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {log.content_created ? '✓ Done' : '○ Not yet'}
-              </button>
+              {weightHistory.length >= 3 && <Sparkline values={weightHistory.slice(-14)} width={96} height={48} />}
             </div>
-            <ContentChat />
           </div>
 
           {/* Food log */}
@@ -841,7 +715,7 @@ export default function HabitsPage() {
               <button className="btn btn-sm" onClick={() => setAddingFood(p => !p)}>+ Add meal</button>
             </div>
             {addingFood && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <div className="h-food-add" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                 <input className="quick-input" value={foodInput} onChange={e => setFoodInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && logFood()}
                   placeholder="e.g. 3 eggs, oats, banana, 200ml milk" autoFocus />
@@ -868,12 +742,111 @@ export default function HabitsPage() {
           </div>
 
           {/* Workout */}
-          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span className="mono-label" style={{ marginBottom: 4 }}>WORKOUT</span>
-              <div style={{ fontSize: 14, color: 'var(--ink-2)' }}>Log today&apos;s training session</div>
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <span className="mono-label" style={{ marginBottom: 0 }}>WORKOUT</span>
+              <Link href="/habits/workout" className="btn btn-sm">Log →</Link>
             </div>
-            <Link href="/habits/workout" className="btn btn-primary">Open →</Link>
+            {!todayWorkout && todayRuns.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' }}>No session logged yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {todayWorkout && todayWorkout.type !== 'Rest' && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 6,
+                    border: '1px solid #22a06b', background: 'rgba(34,160,107,0.08)',
+                  }}>
+                    <span style={{ fontSize: 18 }}>🏋️</span>
+                    <div>
+                      <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: '#22a06b' }}>
+                        {todayWorkout.type}
+                        {todayWorkout.duration_mins ? ` · ${todayWorkout.duration_mins} min` : ''}
+                      </div>
+                      <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>strength session</div>
+                    </div>
+                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 12, color: '#22a06b' }}>✓</span>
+                  </div>
+                )}
+                {todayWorkout?.type === 'Rest' && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 6,
+                    border: '1px solid var(--rule)', background: 'var(--paper-2)',
+                  }}>
+                    <span style={{ fontSize: 18 }}>🛌</span>
+                    <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)' }}>Rest day</div>
+                  </div>
+                )}
+                {todayRuns.map((r, i) => {
+                  const pace = r.duration_mins / r.distance_km
+                  const paceMin = Math.floor(pace)
+                  const paceSec = Math.round((pace - paceMin) * 60)
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 14px', borderRadius: 6,
+                      border: '1px solid #22a06b', background: 'rgba(34,160,107,0.08)',
+                    }}>
+                      <span style={{ fontSize: 18 }}>🏃</span>
+                      <div>
+                        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: '#22a06b' }}>
+                          {r.distance_km} km · {r.duration_mins} min
+                        </div>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>
+                          {paceMin}:{paceSec.toString().padStart(2, '0')} /km pace
+                        </div>
+                      </div>
+                      <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 12, color: '#22a06b' }}>✓</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Dreams */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span className="mono-label" style={{ marginBottom: 0 }}>DREAMS</span>
+              <button
+                onClick={startListening}
+                disabled={isListening}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 6, cursor: isListening ? 'default' : 'pointer',
+                  border: `1px solid ${isListening ? 'var(--accent)' : 'var(--rule)'}`,
+                  background: isListening ? 'rgba(196,80,46,0.08)' : 'var(--paper-2)',
+                  color: isListening ? 'var(--accent)' : 'var(--ink-3)',
+                  fontFamily: 'var(--mono)', fontSize: 11,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize: 14 }}>{isListening ? '🔴' : '🎙️'}</span>
+                {isListening ? 'listening…' : 'dictate'}
+              </button>
+            </div>
+            <textarea
+              value={log.dream_notes || ''}
+              onChange={e => update('dream_notes', e.target.value || null)}
+              placeholder="What did you dream about last night?"
+              rows={4}
+              style={{
+                width: '100%', fontFamily: 'var(--sans)', fontSize: 13,
+                padding: '10px 12px', border: '1px solid var(--rule)',
+                borderRadius: 6, background: 'var(--paper-2)', color: 'var(--ink)',
+                outline: 'none', resize: 'vertical', lineHeight: 1.6,
+                boxSizing: 'border-box',
+              }}
+            />
+            {log.dream_notes && (
+              <button
+                onClick={() => update('dream_notes', null)}
+                style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)' }}
+              >
+                clear
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -901,11 +874,9 @@ export default function HabitsPage() {
                     { label: 'meditation', val: selectedDay.meditation_min > 0 ? `${selectedDay.meditation_min}min` : '—' },
                     { label: 'pages read', val: selectedDay.pages_read > 0 ? `${selectedDay.pages_read}pp` : '—' },
                     { label: 'pages written', val: selectedDay.pages_written > 0 ? `${selectedDay.pages_written}pp` : '—' },
-                    { label: 'chess',      val: selectedDay.chess_games > 0 ? `${selectedDay.chess_games} (${selectedDay.chess_wins}W)` : '—' },
                     { label: 'mood',       val: selectedDay.mood ? `${MOODS[selectedDay.mood]} ${MOOD_LABELS[selectedDay.mood]}` : '—' },
                     { label: 'face care',  val: selectedDay.face_care ? '✓' : '—' },
                     { label: 'oral care',  val: selectedDay.oral_care ? '✓' : '—' },
-                    { label: 'content',    val: selectedDay.content_created ? '✓' : '—' },
                   ].map(({ label, val }) => (
                     <div key={label}>
                       <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
@@ -921,13 +892,12 @@ export default function HabitsPage() {
 
           <div>
             <span className="mono-label">30-DAY TRENDS</span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="h-grid-trends">
               <TrendChart title="Sleep (h)" data={sleepTrend} target={TARGETS.sleep} unit="h" />
               <TrendChart title="Steps" data={stepsTrend} target={TARGETS.steps} unit="" fmt={v => `${(v / 1000).toFixed(1)}k`} />
               <TrendChart title="Meditation (min)" data={meditationTrend} target={TARGETS.meditation} unit="min" />
               <TrendChart title="Pages read" data={pagesReadTrend} target={TARGETS.pages_read} unit="pp" />
               {weightTrend.length >= 3 && <TrendChart title="Weight (kg)" data={weightTrend} unit="kg" fmt={v => `${v.toFixed(1)}kg`} />}
-              {chessTrend.some(v => v > 0) && <TrendChart title="Chess games" data={chessTrend} unit="" />}
             </div>
           </div>
         </div>

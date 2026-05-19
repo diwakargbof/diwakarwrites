@@ -673,3 +673,31 @@ hr.rule { border: none; border-top: 1px solid var(--rule); }
   /* Stat strip: 2×2 on mobile */
   .hero-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+/* ── Habits page responsive grids ────────────────────────────────────────── */
+.h-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.h-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.h-grid-trends { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+/* Goal card: side-by-side stats with divider */
+.h-goal-pair { display: flex; gap: 24px; margin-bottom: 14px; }
+.h-goal-split { border-left: 1px solid var(--rule); padding-left: 24px; }
+
+@media (max-width: 640px) {
+  .h-grid-3 { grid-template-columns: 1fr; }
+  .h-grid-2 { grid-template-columns: 1fr; }
+  .h-grid-trends { grid-template-columns: 1fr; }
+
+  .h-goal-pair { flex-direction: column; gap: 0; }
+  .h-goal-split {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+
+  /* Food log: stack input and actions on small screens */
+  .h-food-add { flex-wrap: wrap; }
+  .h-food-add .quick-input { width: 100%; }
+}
