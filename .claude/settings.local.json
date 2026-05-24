@@ -13,7 +13,8 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Diwakar\\\\diwakarwrites\" -Force)"
     ]
   }
 }
