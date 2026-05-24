@@ -57,6 +57,16 @@ type Food = {
   created_at: string
 }
 
+type FoodItem = {
+  id: string
+  name: string
+  serving_desc: string | null
+  calories: number
+  protein_g: number
+  fiber_g: number
+  use_count: number
+}
+
 type HeatData = {
   date: string; score: number
   sleep_hours: number; steps: number; water_ml: number; weight_kg: number | null
@@ -186,6 +196,15 @@ export default function HabitsPage() {
   const [foodInput, setFoodInput] = useState('')
   const [addingFood, setAddingFood] = useState(false)
   const [loggingFood, setLoggingFood] = useState(false)
+  // food library
+  const [foodLibrary, setFoodLibrary]       = useState<FoodItem[]>([])
+  const [libSearch,   setLibSearch]         = useState('')
+  const [showLibrary, setShowLibrary]       = useState(false)
+  const [savingToLib, setSavingToLib]       = useState(false)
+  const [recentlyLogged, setRecentlyLogged] = useState<Food | null>(null)
+  // add-to-library manual form
+  const [libForm, setLibForm] = useState({ name: '', serving_desc: '', calories: '', protein_g: '', fiber_g: '' })
+  const [addingToLib, setAddingToLib]       = useState(false)
   const [heatmap, setHeatmap] = useState<HeatData[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [todayWorkout, setTodayWorkout] = useState<{ type: string; duration_mins: number | null } | null>(null)
@@ -193,7 +212,7 @@ export default function HabitsPage() {
   const [netHistory,   setNetHistory]   = useState<{ date: string; foodCal: number; tdee: number; net: number }[]>([])
   const [isListening,  setIsListening]  = useState(false)
 
-  useEffect(() => { loadToday(); loadHeatmap(); loadNetHistory() }, [])
+  useEffect(() => { loadToday(); loadHeatmap(); loadNetHistory(); loadFoodLibrary() }, [])
 
   async function loadToday() {
     const { data: h } = await supabase.from('habit_logs').select('*').eq('date', TODAY).single()
@@ -303,7 +322,10 @@ export default function HabitsPage() {
       const nutrition = await res.json()
       const entry = { date: TODAY, meal_type: 'meal', description: foodInput, ...nutrition }
       const { data } = await supabase.from('food_entries').insert(entry).select().single()
-      if (data) setFood(p => [...p, data as Food])
+      if (data) {
+        setFood(p => [...p, data as Food])
+        setRecentlyLogged(data as Food)
+      }
       setFoodInput(''); setAddingFood(false)
     } finally {
       setLoggingFood(false)
@@ -313,6 +335,60 @@ export default function HabitsPage() {
   async function deleteFood(id: string) {
     await supabase.from('food_entries').delete().eq('id', id)
     setFood(p => p.filter(f => f.id !== id))
+  }
+
+  async function loadFoodLibrary() {
+    const { data } = await supabase
+      .from('food_library')
+      .select('*')
+      .order('use_count', { ascending: false })
+      .order('name')
+    if (data) setFoodLibrary(data as FoodItem[])
+  }
+
+  async function addFromLibrary(item: FoodItem) {
+    const entry = {
+      date: TODAY, meal_type: 'meal',
+      description: item.name + (item.serving_desc ? ` (${item.serving_desc})` : ''),
+      calories: item.calories, protein_g: item.protein_g, fiber_g: item.fiber_g,
+    }
+    const { data } = await supabase.from('food_entries').insert(entry).select().single()
+    if (data) setFood(p => [...p, data as Food])
+    // increment use_count
+    await supabase.from('food_library').update({ use_count: item.use_count + 1 }).eq('id', item.id)
+    setFoodLibrary(lib => lib.map(i => i.id === item.id ? { ...i, use_count: i.use_count + 1 } : i))
+    setLibSearch('')
+  }
+
+  async function saveToLibrary(f: Food) {
+    setSavingToLib(true)
+    const { data } = await supabase
+      .from('food_library')
+      .insert({ name: f.description, calories: f.calories, protein_g: f.protein_g, fiber_g: f.fiber_g })
+      .select().single()
+    if (data) setFoodLibrary(lib => [data as FoodItem, ...lib])
+    setSavingToLib(false)
+    setRecentlyLogged(null)
+  }
+
+  async function addToLibraryManually() {
+    if (!libForm.name || !libForm.calories) return
+    setAddingToLib(true)
+    const { data } = await supabase.from('food_library').insert({
+      name: libForm.name.trim(),
+      serving_desc: libForm.serving_desc.trim() || null,
+      calories: parseInt(libForm.calories) || 0,
+      protein_g: parseInt(libForm.protein_g) || 0,
+      fiber_g: parseInt(libForm.fiber_g) || 0,
+    }).select().single()
+    if (data) setFoodLibrary(lib => [data as FoodItem, ...lib])
+    setLibForm({ name: '', serving_desc: '', calories: '', protein_g: '', fiber_g: '' })
+    setAddingToLib(false)
+  }
+
+  async function deleteFromLibrary(id: string) {
+    await supabase.from('food_library').delete().eq('id', id)
+    setFoodLibrary(lib => lib.filter(i => i.id !== id))
   }
 
   const totals = food.reduce((a, f) => ({
@@ -710,19 +786,239 @@ export default function HabitsPage() {
 
           {/* Food log */}
           <div className="card">
+            {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <span className="mono-label" style={{ marginBottom: 0 }}>FOOD LOG</span>
-              <button className="btn btn-sm" onClick={() => setAddingFood(p => !p)}>+ Add meal</button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn btn-sm" style={{ fontSize: 11, color: 'var(--ink-3)' }}
+                  onClick={() => { setShowLibrary(p => !p); setAddingFood(false) }}>
+                  📚 {foodLibrary.length > 0 ? foodLibrary.length : 'Library'}
+                </button>
+                <button className="btn btn-sm" onClick={() => { setAddingFood(p => !p); setShowLibrary(false); setLibSearch('') }}>
+                  + Add meal
+                </button>
+              </div>
             </div>
+
+            {/* ── Add meal panel ── */}
             {addingFood && (
-              <div className="h-food-add" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                <input className="quick-input" value={foodInput} onChange={e => setFoodInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && logFood()}
-                  placeholder="e.g. 3 eggs, oats, banana, 200ml milk" autoFocus />
-                <button className="btn btn-primary btn-sm" onClick={logFood} disabled={loggingFood}>{loggingFood ? '…' : 'Log'}</button>
-                <button className="btn btn-sm" onClick={() => setAddingFood(false)} disabled={loggingFood}>✕</button>
+              <div style={{ marginBottom: 16, borderRadius: 8, border: '1px solid var(--rule)', overflow: 'hidden' }}>
+
+                {/* Library quick-add (only shown if library has items) */}
+                {foodLibrary.length > 0 && (() => {
+                  const filtered = libSearch.trim()
+                    ? foodLibrary.filter(i => i.name.toLowerCase().includes(libSearch.toLowerCase()))
+                    : foodLibrary.slice(0, 6)
+                  return (
+                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--rule)', background: 'var(--paper-2)' }}>
+                      <input
+                        className="quick-input"
+                        value={libSearch}
+                        onChange={e => setLibSearch(e.target.value)}
+                        placeholder="Search saved foods…"
+                        style={{ width: '100%', marginBottom: filtered.length ? 10 : 0, fontSize: 13 }}
+                      />
+                      {filtered.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {filtered.map(item => (
+                            <div key={item.id} style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '7px 10px', borderRadius: 6, background: 'var(--paper)',
+                              cursor: 'pointer', transition: 'background 0.1s',
+                            }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-pale)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'var(--paper)')}
+                            >
+                              <div>
+                                <span style={{ fontSize: 13, fontFamily: 'var(--sans)', color: 'var(--ink)' }}>{item.name}</span>
+                                {item.serving_desc && (
+                                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginLeft: 6 }}>
+                                    {item.serving_desc}
+                                  </span>
+                                )}
+                                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginLeft: 8 }}>
+                                  {item.calories} kcal · {item.protein_g}g prot
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => addFromLibrary(item)}
+                                style={{
+                                  background: 'var(--accent)', color: '#fff', border: 'none',
+                                  borderRadius: 5, padding: '3px 10px', cursor: 'pointer',
+                                  fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                + Add
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {libSearch && filtered.length === 0 && (
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', padding: '4px 2px' }}>
+                          No saved foods match "{libSearch}"
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* Custom entry */}
+                <div style={{ padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input className="quick-input" value={foodInput} onChange={e => setFoodInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && logFood()}
+                    placeholder="or type new meal — AI estimates macros"
+                    style={{ flex: 1, fontSize: 13 }}
+                    autoFocus={foodLibrary.length === 0}
+                  />
+                  <button className="btn btn-primary btn-sm" onClick={logFood} disabled={loggingFood}>
+                    {loggingFood ? '…' : 'Log'}
+                  </button>
+                  <button className="btn btn-sm" onClick={() => { setAddingFood(false); setLibSearch('') }} disabled={loggingFood}>✕</button>
+                </div>
               </div>
             )}
+
+            {/* ── Save-to-library prompt (after AI log) ── */}
+            {recentlyLogged && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+                padding: '8px 12px', borderRadius: 7, background: 'var(--accent-pale)',
+                border: '1px solid var(--accent)',
+              }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)', flex: 1 }}>
+                  ✓ Logged &ldquo;{recentlyLogged.description}&rdquo; — save for next time?
+                </span>
+                <button
+                  onClick={() => saveToLibrary(recentlyLogged)}
+                  disabled={savingToLib}
+                  style={{
+                    fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600,
+                    padding: '4px 10px', borderRadius: 5,
+                    background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer',
+                    opacity: savingToLib ? 0.6 : 1,
+                  }}
+                >
+                  {savingToLib ? '…' : 'Save'}
+                </button>
+                <button onClick={() => setRecentlyLogged(null)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--ink-4)', fontSize: 14, padding: '2px 4px',
+                }}>✕</button>
+              </div>
+            )}
+
+            {/* ── Library management panel ── */}
+            {showLibrary && (
+              <div style={{
+                marginBottom: 16, border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden',
+              }}>
+                <div style={{
+                  padding: '10px 14px', background: 'var(--paper-2)',
+                  borderBottom: '1px solid var(--rule)',
+                  fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.1em',
+                  textTransform: 'uppercase', color: 'var(--ink-4)',
+                }}>
+                  Saved Foods Library
+                </div>
+
+                {/* Existing library items */}
+                {foodLibrary.length === 0 ? (
+                  <div style={{ padding: '14px 14px', fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' }}>
+                    No saved foods yet. Add your first one below.
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                    {foodLibrary.map(item => (
+                      <div key={item.id} style={{
+                        display: 'flex', alignItems: 'center', padding: '9px 14px',
+                        borderBottom: '1px solid var(--rule)', gap: 10,
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 13, fontFamily: 'var(--sans)', color: 'var(--ink)' }}>{item.name}</span>
+                          {item.serving_desc && (
+                            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-4)', marginLeft: 6 }}>
+                              {item.serving_desc}
+                            </span>
+                          )}
+                          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>
+                            {item.calories} kcal · {item.protein_g}g protein · {item.fiber_g}g fiber
+                            {item.use_count > 0 && (
+                              <span style={{ color: 'var(--ink-4)', marginLeft: 8 }}>used {item.use_count}×</span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => deleteFromLibrary(item.id)} style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--ink-4)', fontSize: 14, padding: '2px 4px',
+                        }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add to library manually */}
+                <div style={{ padding: '12px 14px', borderTop: '1px solid var(--rule)', background: 'var(--paper-2)' }}>
+                  <div style={{
+                    fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-4)',
+                    textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
+                  }}>
+                    Add food manually
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <input
+                      className="quick-input"
+                      value={libForm.name}
+                      onChange={e => setLibForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="Name (e.g. Oats with milk)"
+                      style={{ flex: '2 1 160px', fontSize: 12 }}
+                    />
+                    <input
+                      className="quick-input"
+                      value={libForm.serving_desc}
+                      onChange={e => setLibForm(f => ({ ...f, serving_desc: e.target.value }))}
+                      placeholder="Serving (e.g. 1 bowl)"
+                      style={{ flex: '1 1 100px', fontSize: 12 }}
+                    />
+                    <input
+                      className="quick-input"
+                      value={libForm.calories}
+                      onChange={e => setLibForm(f => ({ ...f, calories: e.target.value }))}
+                      placeholder="kcal"
+                      type="number" min="0"
+                      style={{ flex: '0 1 70px', fontSize: 12 }}
+                    />
+                    <input
+                      className="quick-input"
+                      value={libForm.protein_g}
+                      onChange={e => setLibForm(f => ({ ...f, protein_g: e.target.value }))}
+                      placeholder="prot g"
+                      type="number" min="0"
+                      style={{ flex: '0 1 70px', fontSize: 12 }}
+                    />
+                    <input
+                      className="quick-input"
+                      value={libForm.fiber_g}
+                      onChange={e => setLibForm(f => ({ ...f, fiber_g: e.target.value }))}
+                      placeholder="fiber g"
+                      type="number" min="0"
+                      style={{ flex: '0 1 70px', fontSize: 12 }}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={addToLibraryManually}
+                      disabled={addingToLib || !libForm.name || !libForm.calories}
+                      style={{ flexShrink: 0 }}
+                    >
+                      {addingToLib ? '…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Today's logged meals ── */}
             {food.length === 0
               ? <p style={{ fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' }}>No meals logged yet.</p>
               : <div className="row-list">
