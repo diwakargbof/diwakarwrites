@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import CommandPalette from './CommandPalette'
 
 const navItems = [
   { href: '/',          label: 'home' },
@@ -64,11 +65,25 @@ export default function NavBar() {
           <div className="nav-meta">
             {date && <span className="nav-date" suppressHydrationWarning>{date}</span>}
             <button
+              className="cmdk-btn nav-cmdk"
+              onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+              title="Command palette"
+            >
+              <span>Search</span><kbd>⌘K</kbd>
+            </button>
+            <button
+              className="nav-cta nav-log"
+              onClick={() => window.dispatchEvent(new Event('open-voice-log'))}
+              title="Voice log"
+            >
+              🎙 Log
+            </button>
+            <button
               onClick={toggleDark}
               title="Toggle dark mode"
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--ink-3)', fontSize: 14, padding: '8px 10px',
+                color: 'var(--ink-3)', fontSize: 14, padding: '8px 8px',
                 lineHeight: 1, transition: 'color 0.12s',
               }}
             >
@@ -84,6 +99,8 @@ export default function NavBar() {
           </div>
         </div>
       </nav>
+
+      <CommandPalette />
 
       {/* Mobile dropdown menu */}
       {menuOpen && (

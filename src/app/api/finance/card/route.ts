@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { openai } from '@ai-sdk/openai'
+import { anthropic } from '@ai-sdk/anthropic'
 import { generateText } from 'ai'
 import { createClient } from '@supabase/supabase-js'
 
@@ -7,6 +7,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 )
+
+export const maxDuration = 60
 
 // GET — return current unread card (or null if none)
 export async function GET() {
@@ -34,15 +36,23 @@ export async function POST(req: Request) {
       .eq('id', cardId)
   }
 
-  // Fetch all previously learned concepts
-  const { data: history } = await supabase
-    .from('finance_cards')
-    .select('concept, key_takeaway')
-    .not('read_at', 'is', null)
-    .order('read_at', { ascending: true })
+  // Fetch all previously learned concepts + the user's portfolio (so lessons stay relevant)
+  const [{ data: history }, { data: holdings }] = await Promise.all([
+    supabase
+      .from('finance_cards')
+      .select('concept, key_takeaway')
+      .not('read_at', 'is', null)
+      .order('read_at', { ascending: true }),
+    supabase.from('finance_holdings').select('asset_type'),
+  ])
 
   const learnedConcepts = (history ?? []).map(c => c.concept)
   const isFirst = learnedConcepts.length === 0
+
+  const ownedTypes = [...new Set((holdings ?? []).map(h => h.asset_type))]
+  const portfolioHint = ownedTypes.length
+    ? `\n\nThe student actually owns these asset types: ${ownedTypes.join(', ')}. When natural, prefer concepts that help them understand what they already hold.`
+    : ''
 
   const prompt = isFirst
     ? `Generate the very first finance lesson for an absolute beginner in India.
@@ -61,14 +71,14 @@ In content: use **bold** for key terms, write in short clear paragraphs. Make it
 
     : `You are a finance teacher for an absolute beginner in India.
 
-The student has already learned these concepts (in order):
-${learnedConcepts.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+The student has already learned these concepts (in order, with the key takeaway each):
+${(history ?? []).map((c, i) => `${i + 1}. ${c.concept} — ${c.key_takeaway}`).join('\n')}
 
 Generate the NEXT concept to teach. Rules:
 - It must build naturally on what they've already learned
 - It must be something a curious beginner would genuinely wonder about next
 - Explain from zero — assume they only know what's listed above
-- Use Indian examples: NSE, BSE, Zerodha, SBI Mutual Fund, Nifty, Sensex, HDFC, Reliance, etc.
+- Use Indian examples: NSE, BSE, Zerodha, SBI Mutual Fund, Nifty, Sensex, HDFC, Reliance, etc.${portfolioHint}
 
 Return ONLY valid JSON (no markdown, no preamble):
 {
@@ -81,7 +91,7 @@ Return ONLY valid JSON (no markdown, no preamble):
 Use **bold** for key terms in content.`
 
   const { text } = await generateText({
-    model: openai('gpt-4o'),
+    model: anthropic('claude-sonnet-4-6'),
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.75,
   })

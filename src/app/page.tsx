@@ -86,7 +86,8 @@ export default async function Home() {
         <div className="hero-stats-grid" style={{
           display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 1, background: 'var(--rule)',
-          border: '1px solid var(--rule)', borderRadius: 8, overflow: 'hidden',
+          border: '1px solid var(--rule)', borderRadius: 'var(--r-lg)', overflow: 'hidden',
+          boxShadow: 'var(--shadow-sm)',
         }}>
           {[
             { value: streakDays > 0 ? String(streakDays) : '—', label: 'day streak', accent: streakDays > 0 },
@@ -94,7 +95,7 @@ export default async function Home() {
             { value: String(totalEntries), label: totalEntries === 1 ? 'entry written' : 'entries written', accent: false },
             { value: String(booksCount), label: 'books on shelf', accent: false },
           ].map(({ value, label, accent }) => (
-            <div key={label} style={{ background: 'var(--paper)', padding: '22px 24px' }}>
+            <div key={label} style={{ background: 'var(--paper-3)', padding: '22px 24px' }}>
               <div style={{
                 fontFamily: 'var(--mono)', fontSize: 'clamp(22px, 3vw, 32px)',
                 fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 1,

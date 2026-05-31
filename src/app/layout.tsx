@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import Sidebar from '@/components/Sidebar'
 import MobileDataStrip from '@/components/MobileDataStrip'
 import StickyTodo from '@/components/StickyTodo'
+import VoiceLogger from '@/components/VoiceLogger'
 
 export const metadata: Metadata = {
   title: 'Diwakar · Notebook, Habits, Library',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Sidebar />
         <MobileDataStrip />
         <StickyTodo />
+        <VoiceLogger />
         <div className="main-offset">
           <div style={{ minHeight: 'calc(100vh - var(--nav-h) - 61px)' }}>
             {children}

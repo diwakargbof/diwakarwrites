@@ -26,7 +26,10 @@ function calcTDEE(steps: number, workoutType?: string, workoutMins?: number | nu
 const MOODS = ['', '😞', '😐', '🙂', '😊', '😄']
 const MOOD_LABELS = ['', 'rough', 'meh', 'okay', 'good', 'great']
 
-// Weight loss goal: 6 kg → 61.5 kg, started 2026-05-19
+// Net-calorie counter reset: running totals + the weight-loss goal count only
+// days on/after this date. History before it is preserved for the heatmap/trends.
+const RESET_DATE = '2026-05-31'
+// Weight loss goal: 6 kg → 61.5 kg (deficit accumulates from RESET_DATE onward)
 const GOAL_START_DATE = '2026-05-19'
 const GOAL_KG = 6
 const GOAL_DEFICIT_KCAL = GOAL_KG * 7700  // 46,200 kcal
@@ -417,13 +420,17 @@ export default function HabitsPage() {
   })()
   const monthStartStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
 
-  const pastDays  = netHistory.filter(d => d.date !== TODAY)
-  const weekNet   = pastDays.filter(d => d.date >= weekStartStr).reduce((s, d) => s + d.net, 0) + todayNet
-  const monthNet  = pastDays.filter(d => d.date >= monthStartStr).reduce((s, d) => s + d.net, 0) + todayNet
+  // Only count days on/after RESET_DATE — the counter starts fresh from there.
+  const effWeekStart  = weekStartStr  >= RESET_DATE ? weekStartStr  : RESET_DATE
+  const effMonthStart = monthStartStr >= RESET_DATE ? monthStartStr : RESET_DATE
+  const pastDays  = netHistory.filter(d => d.date !== TODAY && d.date >= RESET_DATE)
+  const weekNet   = pastDays.filter(d => d.date >= effWeekStart).reduce((s, d) => s + d.net, 0) + todayNet
+  const monthNet  = pastDays.filter(d => d.date >= effMonthStart).reduce((s, d) => s + d.net, 0) + todayNet
   const allTimeNet = pastDays.reduce((s, d) => s + d.net, 0) + todayNet
 
-  // Weight loss goal: cumulative deficit since GOAL_START_DATE (negative net = deficit)
-  const goalPastNet   = netHistory.filter(d => d.date >= GOAL_START_DATE && d.date !== TODAY).reduce((s, d) => s + d.net, 0)
+  // Weight loss goal: cumulative deficit, anchored to RESET_DATE (negative net = deficit)
+  const goalStart     = GOAL_START_DATE >= RESET_DATE ? GOAL_START_DATE : RESET_DATE
+  const goalPastNet   = netHistory.filter(d => d.date >= goalStart && d.date !== TODAY).reduce((s, d) => s + d.net, 0)
   const goalTotalNet  = goalPastNet + todayNet
   const goalAccumulated = -goalTotalNet  // positive = deficit accumulated
   const goalRemaining   = GOAL_DEFICIT_KCAL - goalAccumulated
@@ -528,7 +535,7 @@ export default function HabitsPage() {
                   {([
                     { label: 'this week',  net: weekNet },
                     { label: 'this month', net: monthNet },
-                    { label: 'all time',   net: allTimeNet },
+                    { label: 'since reset', net: allTimeNet },
                   ] as const).map(({ label, net }) => (
                     <div key={label} style={{ textAlign: 'center' }}>
                       <div style={{
@@ -558,7 +565,7 @@ export default function HabitsPage() {
                   <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--ink-3)', marginLeft: 4 }}>kcal deficit</span>
                 </div>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)', marginTop: 2 }}>
-                  so far since {GOAL_START_DATE}
+                  so far since {goalStart}
                 </div>
               </div>
               <div className="h-goal-split">

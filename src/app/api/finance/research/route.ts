@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { openai } from '@ai-sdk/openai'
+import { anthropic } from '@ai-sdk/anthropic'
 import { generateText } from 'ai'
 import { createClient } from '@supabase/supabase-js'
 
@@ -7,6 +7,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 )
+
+export const maxDuration = 60
 
 interface MarketPoint { price: number; pct: string }
 
@@ -68,10 +70,22 @@ export async function GET() {
   if (existing) return NextResponse.json(existing)
 
   // Generate fresh brief
-  const [marketData, headlines] = await Promise.all([
+  const [marketData, headlines, { data: holdings }] = await Promise.all([
     fetchMarketSnapshot(),
     fetchETHeadlines(),
+    supabase
+      .from('finance_holdings')
+      .select('symbol, name, units, buy_price, buy_currency, asset_type'),
   ])
+
+  const portfolioStr = (holdings ?? []).length
+    ? (holdings ?? [])
+        .map(
+          h =>
+            `• ${h.name} (${h.symbol}) — ${h.units} units @ ${h.buy_currency === 'USD' ? '$' : '₹'}${h.buy_price} [${h.asset_type}]`,
+        )
+        .join('\n')
+    : '(No holdings yet — keep the brief general.)'
 
   const fmt = (n: number, decimals = 0) => n.toLocaleString('en-IN', { maximumFractionDigits: decimals })
   const sign = (p: string) => parseFloat(p) >= 0 ? `+${p}` : p
@@ -97,10 +111,10 @@ export async function GET() {
     : '(No headlines fetched today)'
 
   const { text: brief } = await generateText({
-    model: openai('gpt-4o'),
+    model: anthropic('claude-sonnet-4-6'),
     messages: [{
       role: 'user',
-      content: `You are writing a daily market brief for someone who is a COMPLETE beginner in finance. Assume they know basic things like "stocks go up and down" but nothing technical.
+      content: `You are writing a daily market brief for Diwakar, who is a COMPLETE beginner in finance. Assume he knows basic things like "stocks go up and down" but nothing technical.
 
 Today's market data (${today}):
 ${lines}
@@ -108,11 +122,15 @@ ${lines}
 Today's top headlines from Economic Times:
 ${headlineStr}
 
-Write a 220-260 word brief that:
+Diwakar's actual portfolio (reference it when today's moves are relevant to what he owns):
+${portfolioStr}
+
+Write a 220-280 word brief that:
 1. Opens with what markets did today — use simple, relatable language (e.g. "Indian markets had a good day today...")
 2. Picks ONE interesting thing from the data or headlines and explains WHY it happened in plain terms (use an everyday analogy if helpful)
-3. Briefly mentions global context (US markets, gold, Bitcoin) and how they connect to India
-4. Closes with ONE calm, practical thought for a long-term investor (not dismissive — genuinely useful)
+3. If his holdings are affected by today's moves, mention it briefly and concretely (e.g. "your Nifty index fund would have nudged up today") — but never give buy/sell commands
+4. Briefly mentions global context (US markets, gold, Bitcoin) and how they connect to India
+5. Closes with ONE calm, practical thought for a long-term investor (not dismissive — genuinely useful)
 
 Tone: warm, conversational, like a knowledgeable friend texting you a market update. No bullet points. Short paragraphs. No jargon without explaining it.`,
     }],

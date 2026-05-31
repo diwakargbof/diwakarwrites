@@ -1,4 +1,4 @@
-import { openai } from '@ai-sdk/openai'
+import { anthropic } from '@ai-sdk/anthropic'
 import { streamText, convertToModelMessages, UIMessage } from 'ai'
 import { createClient } from '@supabase/supabase-js'
 
@@ -25,12 +25,29 @@ export async function POST(req: Request) {
       .order('read_at', { ascending: true }),
   ])
 
+  // Approximate invested value per holding (in INR; USD positions converted at ~83)
+  const USD_INR = 83
+  const investedInr = (h: { units: number; buy_price: number; buy_currency: string }) =>
+    h.units * h.buy_price * (h.buy_currency === 'USD' ? USD_INR : 1)
+
+  const totalInvested = (holdings ?? []).reduce((s, h) => s + investedInr(h), 0)
+
+  const allocByType = (holdings ?? []).reduce<Record<string, number>>((acc, h) => {
+    acc[h.asset_type] = (acc[h.asset_type] || 0) + investedInr(h)
+    return acc
+  }, {})
+
+  const allocStr = Object.entries(allocByType)
+    .map(([type, val]) => `${type}: ${totalInvested ? Math.round((val / totalInvested) * 100) : 0}%`)
+    .join(', ')
+
   const holdingsSummary = (holdings ?? []).length
     ? (holdings ?? [])
         .map(h =>
-          `• ${h.name} (${h.symbol}): ${h.units} units @ ${h.buy_currency === 'USD' ? '$' : '₹'}${h.buy_price} [${h.asset_type}]`,
+          `• ${h.name} (${h.symbol}): ${h.units} units @ ${h.buy_currency === 'USD' ? '$' : '₹'}${h.buy_price} [${h.asset_type}] — ~₹${Math.round(investedInr(h)).toLocaleString('en-IN')} invested`,
         )
-        .join('\n')
+        .join('\n') +
+      `\n\nTotal invested: ~₹${Math.round(totalInvested).toLocaleString('en-IN')} (cost basis). Allocation by type: ${allocStr || 'n/a'}.`
     : 'No holdings added yet.'
 
   const learnedSummary = (cards ?? []).length
@@ -69,7 +86,7 @@ Personality: Direct. Warm. Intellectually honest. You don't sugarcoat risk, but 
 Format: Short, punchy answers. Use bullet points only when listing multiple items. If someone asks a complex question, break it into 2-3 digestible chunks. Never write essays unless explicitly asked to explain something in depth.`
 
   const result = streamText({
-    model: openai('gpt-4o'),
+    model: anthropic('claude-sonnet-4-6'),
     system,
     messages: await convertToModelMessages(messages),
   })
