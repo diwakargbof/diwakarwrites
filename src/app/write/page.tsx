@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { supabase, Writing } from '@/lib/supabase'
+import { db as supabase } from '@/lib/db'
+import type { Writing } from '@/lib/supabase'
 import { createWriting, createWritingForm } from './actions'
-import PasswordGate from '@/components/PasswordGate'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,9 +32,9 @@ export default async function WritePage({
   const book   = all.filter(w => w.section === 'book')
 
   const totalWords = all.reduce((s, w) => s + wc(w.content), 0)
+  const publicCount = all.filter(w => w.is_public).length
 
   return (
-    <PasswordGate>
     <div style={{ maxWidth: 820, margin: '0 auto', padding: '52px 24px 80px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 44 }}>
@@ -42,7 +42,7 @@ export default async function WritePage({
           <Link href="/" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none', display: 'block', marginBottom: 8 }}>← home</Link>
           <h1 className="page-h">Write</h1>
           <p style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>
-            {all.length} drafts · {totalWords.toLocaleString()} words total
+            {all.length} drafts · {totalWords.toLocaleString()} words total · {publicCount} public
           </p>
         </div>
         <Link href="/write/book" className="btn">
@@ -84,12 +84,25 @@ export default async function WritePage({
                       {wc(w.content).toLocaleString()} words · {new Date(w.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
-                  <span style={{
-                    fontSize: 11, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 20, flexShrink: 0,
-                    background: w.published ? 'rgba(74,180,80,0.1)' : 'var(--paper-2)',
-                    color: w.published ? '#3a9a3f' : 'var(--ink-4)',
-                  }}>
-                    {w.published ? 'published' : 'draft'}
+                  <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    {w.is_public && (
+                      <span
+                        title="Visible on the public site"
+                        style={{
+                          fontSize: 11, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 20,
+                          background: 'var(--accent-pale)', color: 'var(--accent)',
+                        }}
+                      >
+                        public
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: 11, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 20,
+                      background: w.published ? 'rgba(74,180,80,0.1)' : 'var(--paper-2)',
+                      color: w.published ? '#3a9a3f' : 'var(--ink-4)',
+                    }}>
+                      {w.published ? 'published' : 'draft'}
+                    </span>
                   </span>
                 </Link>
               ))}
@@ -98,6 +111,5 @@ export default async function WritePage({
         </div>
       ))}
     </div>
-    </PasswordGate>
   )
 }

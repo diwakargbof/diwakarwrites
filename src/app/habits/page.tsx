@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ChatPanel from '@/components/ChatPanel'
-import PasswordGate from '@/components/PasswordGate'
 
 const TODAY = new Date().toISOString().split('T')[0]
 const TARGETS = {
@@ -447,7 +446,6 @@ export default function HabitsPage() {
   ].filter(Boolean).join('  ')
 
   return (
-    <PasswordGate>
     <div className="page-wrap">
       <div style={{ marginBottom: 32 }}>
         <h1 className="page-h" style={{ marginBottom: 6 }}>Habits</h1>
@@ -1208,7 +1206,6 @@ export default function HabitsPage() {
 
       <ChatPanel agent="fitness" label="Fitness Coach" placeholder="How's my protein this week? What should I train today?" />
     </div>
-    </PasswordGate>
   )
 }
 

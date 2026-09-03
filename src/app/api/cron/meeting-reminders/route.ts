@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { db as supabase } from '@/lib/db'
 import { sendPushNotification } from '@/lib/push'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function GET(req: Request) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {

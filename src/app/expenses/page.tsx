@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import PasswordGate from '@/components/PasswordGate'
 import { supabase } from '@/lib/supabase'
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -164,7 +163,6 @@ export default function ExpensesPage() {
   const selectedCat = cat(category)
 
   return (
-    <PasswordGate>
       <div className="page-wrap">
 
         {/* ── Header ── */}
@@ -477,6 +475,5 @@ export default function ExpensesPage() {
         )}
 
       </div>
-    </PasswordGate>
   )
 }

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { supabase } from '@/lib/supabase'
+import { db as supabase } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import WritingEditor from './WritingEditor'
 

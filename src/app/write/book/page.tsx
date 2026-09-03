@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { supabase, Manuscript } from '@/lib/supabase'
+import { db as supabase } from '@/lib/db'
+import type { Manuscript } from '@/lib/supabase'
 import { createManuscript, deleteManuscript } from '../actions'
 
 export const dynamic = 'force-dynamic'

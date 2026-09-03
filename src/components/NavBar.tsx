@@ -89,6 +89,16 @@ export default function NavBar() {
             >
               {dark ? '☀' : '☾'}
             </button>
+            <a
+              href="/logout"
+              title="Sign out — the site goes back to its public face"
+              style={{
+                fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)',
+                textDecoration: 'none', padding: '8px 6px', lineHeight: 1,
+              }}
+            >
+              out
+            </a>
             <button
               className="hamburger"
               onClick={() => setMenuOpen(v => !v)}

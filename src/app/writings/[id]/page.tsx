@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { isAdmin } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 function wc(html: string) {
   return html.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length
@@ -10,27 +11,35 @@ function wc(html: string) {
 
 export default async function ReadingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { data: w } = await supabase
-    .from('writings').select('*').eq('id', id).eq('published', true).single()
+  const admin = await isAdmin()
 
-  if (!w) notFound()
+  const { data: w } = await db.from('writings').select('*').eq('id', id).maybeSingle()
+
+  // A piece is readable by outsiders only once it has been marked public.
+  // Anything else 404s rather than hinting that it exists.
+  if (!w || (!admin && !w.is_public)) notFound()
 
   const words = wc(w.content)
   const readingMins = Math.max(1, Math.round(words / 200))
   const sectionLabel = w.section === 'book' ? 'THE BOOK' : w.section === 'diary' ? 'DIARY' : 'PIECES'
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '52px 24px 96px' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 0 72px' }}>
       <Link href="/writings" style={{
         fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)',
-        textDecoration: 'none', display: 'inline-block', marginBottom: 52,
-        transition: 'color 0.12s',
+        textDecoration: 'none', display: 'inline-block', marginBottom: 44,
       }}>
-        ← writings
+        &larr; writings
       </Link>
 
+      {admin && !w.is_public && (
+        <div className="pub-private-flag">
+          Private &mdash; only you can see this. Flip the &ldquo;public&rdquo; switch in the editor to share it.
+        </div>
+      )}
+
       {/* Meta */}
-      <div style={{ marginBottom: 44 }}>
+      <div style={{ marginBottom: 40 }}>
         <span className="mono-label" style={{ marginBottom: 14 }}>{sectionLabel}</span>
         <h1 style={{
           fontFamily: 'var(--serif)', fontSize: 38, fontWeight: 600,
@@ -40,9 +49,9 @@ export default async function ReadingPage({ params }: { params: Promise<{ id: st
         </h1>
         <div style={{ display: 'flex', gap: 20, fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>
           <span>{new Date(w.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-          <span>·</span>
+          <span>&middot;</span>
           <span>{words.toLocaleString()} words</span>
-          <span>·</span>
+          <span>&middot;</span>
           <span>{readingMins} min read</span>
         </div>
       </div>
@@ -68,13 +77,16 @@ export default async function ReadingPage({ params }: { params: Promise<{ id: st
       />
 
       {/* Footer */}
-      <div style={{ marginTop: 64, paddingTop: 28, borderTop: '1px solid var(--rule)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{
+        marginTop: 64, paddingTop: 28, borderTop: '1px solid var(--rule)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16,
+      }}>
         <Link href="/writings" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none' }}>
-          ← all writings
+          &larr; all writings
         </Link>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-4)' }}>
-          {words.toLocaleString()} words · {readingMins} min
-        </span>
+        <Link href="/board" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', textDecoration: 'none' }}>
+          say something on the board &rarr;
+        </Link>
       </div>
     </div>
   )

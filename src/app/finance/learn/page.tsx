@@ -54,14 +54,8 @@ export default function FinanceLearnPage() {
   }, [])
 
   const loadHistory = useCallback(async () => {
-    // Re-fetch all cards to get history — call the DB directly via the price API pattern
-    // We'll use a simple approach: the card GET already gives unread; for history we parse from the response
-    // Instead, just fetch via supabase client
-    const { createClient } = await import('@supabase/supabase-js')
-    const sb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
+    // Goes through the gated /api/db proxy — no key in the bundle.
+    const { supabase: sb } = await import('@/lib/supabase')
     const { data } = await sb
       .from('finance_cards')
       .select('*')

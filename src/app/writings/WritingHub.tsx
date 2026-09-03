@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, Manuscript } from '@/lib/supabase'
 import ChatPanel from '@/components/ChatPanel'
-import PasswordGate from '@/components/PasswordGate'
 
 type W = {
   id: string
@@ -292,14 +291,12 @@ export default function WritingHub({ writings }: { writings: W[] }) {
         </div>
       </div>
 
-      <PasswordGate>
-        <ChatPanel
-          agent="writing"
-          label="Writing Agent"
-          placeholder="What should happen in the next chapter? Review my prose…"
-          extraBody={selectedMs ? { manuscriptId: selectedMs.id } : undefined}
-        />
-      </PasswordGate>
+      <ChatPanel
+        agent="writing"
+        label="Writing Agent"
+        placeholder="What should happen in the next chapter? Review my prose…"
+        extraBody={selectedMs ? { manuscriptId: selectedMs.id } : undefined}
+      />
     </div>
   )
 }

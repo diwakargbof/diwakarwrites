@@ -15,18 +15,23 @@ Personal productivity and life-tracking platform with integrated AI coaching. Si
 | Database | Supabase (PostgreSQL) |
 | AI / LLM | OpenAI GPT-4o / GPT-4o-mini via Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) |
 | Rich Text | Tiptap v3 (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-placeholder`) |
-| Auth | Simple password gate — `ADMIN_PASSWORD` env var, no sessions |
+| Auth | HMAC-signed session cookie derived from `ADMIN_PASSWORD`, enforced in `src/proxy.ts` |
 
 ---
 
 ## Environment Variables
 
 ```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-ADMIN_PASSWORD
+NEXT_PUBLIC_SUPABASE_URL          # or SUPABASE_URL — server-only either way now
+NEXT_PUBLIC_SUPABASE_ANON_KEY     # or SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY         # optional, required once RLS is enabled
+ADMIN_PASSWORD                    # also the HMAC secret for session cookies
 OPENAI_API_KEY
 ```
+
+No Supabase credential is sent to the browser. Client components import
+`supabase` from `src/lib/supabase.ts`, which points at the session-gated
+`/api/db` proxy; server code imports `db` from `src/lib/db.ts`.
 
 ---
 
@@ -141,10 +146,26 @@ src/
 
 All chat routes stream responses using Vercel AI SDK (`streamText`). `maxDuration = 30` is set on streaming routes.
 
+### Public vs private
+
+The site has two faces, chosen by whether the request carries a valid owner
+session. `src/app/layout.tsx` picks the shell; `src/proxy.ts` is the fence.
+
+| | Visitor | Owner |
+|---|---|---|
+| Shell | `PublicShell` — masthead, one column, no rails | NavBar + Sidebar + StickyTodo + VoiceLogger |
+| `/` | Public landing: intro, public writing, board link | Full dashboard |
+| `/writings` | Only rows with `is_public = true` | Everything published |
+| `/writings/[id]` | 404 unless `is_public` | Always |
+| `/board` | Open, minus the owner's private notes | Everything, plus delete and visibility toggles |
+| Everything else | Redirect to `/login` | Full access |
+
 ### Auth
-- `POST /api/auth` validates password against `ADMIN_PASSWORD` env var
-- `PasswordGate` component wraps `/write` and other private sections
-- No session cookies — gate state lives in component/local state
+- `src/lib/session.ts` — HMAC-SHA256 signed token, `dw_session` cookie, 60-day life
+- `src/lib/auth.ts` — `isAdmin()` for server components, routes and actions
+- `src/proxy.ts` — outer gate; anything not on the public list redirects to `/login`
+- `POST /api/auth` and the `/login` server action both issue the session; `/logout` clears it
+- Forged cookies fail the signature check, so the value cannot simply be typed in
 
 ---
 
@@ -156,11 +177,12 @@ All chat routes stream responses using Vercel AI SDK (`streamText`). `maxDuratio
 | `food_entries` | Nutrition / calorie tracking |
 | `workout_sessions` | Strength workout logger |
 | `run_sessions` | Run tracker |
-| `writings` | Pieces and diary entries |
+| `writings` | Pieces and diary entries (`is_public` gates the public site) |
 | `manuscripts` | Books / manuscript metadata |
 | `books` | Media library — books |
 | `films` | Media library — films |
 | `shows` | Media library — TV shows |
+| `board_posts` | Public board — threaded via `parent_id`, `is_owner` + `visibility` control who sees what |
 
 Types exported from `src/lib/supabase.ts`: `Writing`, `Manuscript`.
 
@@ -183,4 +205,6 @@ Types exported from `src/lib/supabase.ts`: `Writing`, `Manuscript`.
 - **API routes** use Next.js Route Handlers (`route.ts`) — `export async function POST(req: Request)`
 - `force-dynamic` set on pages that must not be cached (e.g., `/write`)
 - Streaming AI routes export `export const maxDuration = 30`
-- Supabase client is a singleton imported from `src/lib/supabase.ts`
+- Server code uses `db` from `src/lib/db.ts`; client code uses `supabase` from `src/lib/supabase.ts` (routed through `/api/db`)
+- Never reference `NEXT_PUBLIC_SUPABASE_*` from a client component — it would inline the key into the bundle
+- New private routes are gated automatically; new *public* routes must be added to `PUBLIC_PATHS` in `src/proxy.ts`

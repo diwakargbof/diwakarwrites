@@ -2,20 +2,23 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { createSessionToken, sessionCookie, SESSION_COOKIE } from '@/lib/session'
+
+/** Only allow same-site relative destinations — never an absolute URL. */
+function safeNext(value: unknown) {
+  const next = typeof value === 'string' ? value : ''
+  return next.startsWith('/') && !next.startsWith('//') ? next : '/'
+}
 
 export async function login(_: unknown, formData: FormData) {
-  const password = formData.get('password') as string
+  const password = String(formData.get('password') ?? '')
+  const next = safeNext(formData.get('next'))
 
-  if (password === process.env.ADMIN_PASSWORD) {
-    const cookieStore = await cookies()
-    cookieStore.set('admin_session', 'true', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    })
-    redirect('/write')
+  if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
+    return { error: 'Wrong password.' }
   }
 
-  return { error: 'Wrong password' }
+  const store = await cookies()
+  store.set(SESSION_COOKIE, createSessionToken(), sessionCookie)
+  redirect(next)
 }

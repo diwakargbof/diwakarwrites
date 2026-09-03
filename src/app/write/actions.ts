@@ -1,6 +1,6 @@
 'use server'
 
-import { supabase } from '@/lib/supabase'
+import { db as supabase } from '@/lib/db'
 import { redirect } from 'next/navigation'
 
 export async function createWritingForm(formData: FormData) {

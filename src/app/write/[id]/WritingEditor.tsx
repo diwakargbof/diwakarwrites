@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import Editor from '@/components/Editor'
 import { Writing } from '@/lib/supabase'
 import { saveWriting, deleteWriting } from './actions'
-import PasswordGate from '@/components/PasswordGate'
 
 const SECTIONS = [
   { value: 'pieces', label: 'Piece' },
@@ -18,6 +17,7 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
   const [title, setTitle] = useState(writing.title)
   const [content, setContent] = useState(writing.content)
   const [published, setPublished] = useState(writing.published)
+  const [isPublic, setIsPublic] = useState(Boolean(writing.is_public))
   const [section, setSection] = useState((writing as Writing & { section?: string }).section ?? 'pieces')
   const [saved, setSaved] = useState(true)
   const [saving, startSave] = useTransition()
@@ -27,7 +27,7 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
 
   const handleSave = () => {
     startSave(async () => {
-      await saveWriting({ id: writing.id, title, content, published, section })
+      await saveWriting({ id: writing.id, title, content, published, isPublic, section })
       setSaved(true)
     })
   }
@@ -39,7 +39,6 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
   }
 
   return (
-    <PasswordGate>
     <div style={{ maxWidth: 920, margin: '0 auto', padding: '40px 24px 80px' }}>
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, gap: 12 }}>
@@ -55,6 +54,13 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
             <input type="checkbox" checked={published} onChange={e => { setPublished(e.target.checked); markDirty() }} style={{ accentColor: 'var(--accent)' }} />
             Publish
           </label>
+          <label
+            title="Anyone on the internet can read this piece"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', userSelect: 'none', color: isPublic ? 'var(--accent)' : 'var(--ink-3)', fontWeight: isPublic ? 600 : 400 }}
+          >
+            <input type="checkbox" checked={isPublic} onChange={e => { setIsPublic(e.target.checked); markDirty() }} style={{ accentColor: 'var(--accent)' }} />
+            Public
+          </label>
           <button onClick={handleSave} disabled={saving || saved} className="btn btn-primary"
             style={{ opacity: saved && !saving ? 0.5 : 1 }}>
             {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
@@ -65,6 +71,12 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
         </div>
       </div>
 
+      <p style={{ fontFamily: 'var(--mono)', fontSize: 11, color: isPublic ? 'var(--accent)' : 'var(--ink-4)', marginBottom: 18 }}>
+        {isPublic
+          ? 'Public — this appears on the site for everyone.'
+          : 'Private — only you can see this.'}
+      </p>
+
       {/* Title */}
       <input type="text" value={title} onChange={e => { setTitle(e.target.value); markDirty() }}
         placeholder="Title"
@@ -73,6 +85,5 @@ export default function WritingEditor({ writing }: { writing: Writing }) {
       {/* Editor */}
       <Editor content={content} onChange={html => { setContent(html); markDirty() }} />
     </div>
-    </PasswordGate>
   )
 }

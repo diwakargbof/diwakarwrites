@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { supabase, Manuscript } from '@/lib/supabase'
+import { db as supabase } from '@/lib/db'
+import type { Manuscript } from '@/lib/supabase'
 import { notFound, redirect } from 'next/navigation'
 import { createWritingForm } from '../../actions'
 
