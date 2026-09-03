@@ -35,42 +35,6 @@ ALTER TABLE writings
 CREATE INDEX IF NOT EXISTS writings_public_idx ON writings(is_public, created_at DESC);
 
 
--- ════════════════════════════════════════════════════════════════════
--- STEP 2 (do this second, and only after setting SUPABASE_SERVICE_ROLE_KEY)
---
--- The app no longer sends the anon key to the browser: client pages talk
--- to /api/db, which checks the session server-side. Locking the tables
--- down with RLS closes the door on anyone still holding the old key.
---
--- 1. Supabase dashboard -> Project Settings -> API -> service_role key
--- 2. Add SUPABASE_SERVICE_ROLE_KEY to .env.local and to Vercel
--- 3. Rotate the anon key too — the old one was public for a while
--- 4. Then run everything below
---
--- The service-role key bypasses RLS, so the server keeps working while
--- direct anon-key access returns nothing.
--- ════════════════════════════════════════════════════════════════════
-
--- ALTER TABLE habit_logs          ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE food_entries        ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE workout_sessions    ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE run_sessions        ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE writings            ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE manuscripts         ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE books               ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE films               ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE shows               ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE expenses            ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE board_posts         ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE meetings            ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE long_term_goals     ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE push_subscriptions  ENABLE ROW LEVEL SECURITY;
-
--- With RLS on and no policies, anon and authenticated roles can read
--- nothing. That is the intended end state — every legitimate read now
--- goes through the server. Check for any table this migration missed:
---
---   SELECT tablename, rowsecurity
---     FROM pg_tables
---    WHERE schemaname = 'public'
---    ORDER BY rowsecurity, tablename;
+-- Locking the tables down with RLS is a separate, later step:
+-- see 005_enable_rls.sql. Do that one only after the server has a
+-- service-role key, or the site loses its own database.
